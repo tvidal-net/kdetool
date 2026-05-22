@@ -5,6 +5,7 @@ use std::process::ExitCode;
 
 mod client;
 mod cmd;
+mod service;
 
 fn main() -> ExitCode {
     let _args = Config::parse();
@@ -18,13 +19,17 @@ fn main() -> ExitCode {
     };
 
     match client.active_output_name() {
-        Ok(name) => {
-            println!("{name}");
-            ExitCode::SUCCESS
-        }
+        Ok(name) => println!("{name}"),
         Err(error) => {
             eprintln!("activeOutputName failed: {error}");
-            ExitCode::FAILURE
+            return ExitCode::FAILURE;
         }
     }
+
+    if let Err(error) = service::serve() {
+        eprintln!("service failed: {error}");
+        return ExitCode::FAILURE;
+    }
+
+    ExitCode::SUCCESS
 }
