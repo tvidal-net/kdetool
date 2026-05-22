@@ -26,8 +26,8 @@ fn main() -> ExitCode {
         }
     }
 
-    if let Err(error) = service::serve() {
-        eprintln!("service failed: {error}");
+    if let Err(error) = service::query() {
+        eprintln!("query failed: {error}");
         return ExitCode::FAILURE;
     }
 
