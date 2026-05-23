@@ -1,9 +1,9 @@
 use crate::cmd::Config;
 use clap::Parser;
-use regex::Regex;
-use std::fmt::Display;
+use regex::{Error, Regex};
 use std::process::ExitCode;
 use std::time::Duration;
+use std::{fmt, sync};
 
 mod cmd;
 mod kwin;
@@ -17,8 +17,8 @@ pub struct Maximize {
     vertical: bool,
 }
 
-impl Display for Maximize {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for Maximize {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         if self.vertical {
             write!(f, "v")?;
         }
@@ -38,8 +38,28 @@ pub enum Geometry {
     Maximize(Maximize),
 }
 
-impl Display for Geometry {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+static GEOMETRY_PARSER: sync::LazyLock<Regex> =
+    sync::LazyLock::new(|| Regex::new(r"([whxy])(\d+)(%?)").unwrap());
+
+impl Geometry {
+    pub fn parse(s: &str) -> Result<impl Iterator<Item = Geometry>, Error> {
+        let mut geometry = Vec::new();
+        for cap in GEOMETRY_PARSER.captures_iter(s) {
+            let (prefix, value, percent) = (&cap[1], &cap[2], !cap[3].is_empty());
+            match prefix {
+                "w" => geometry.push(Geometry::Width(value.parse().unwrap())),
+                "h" => geometry.push(Geometry::Height(value.parse().unwrap())),
+                "x" => geometry.push(Geometry::Left(value.parse().unwrap())),
+                "y" => geometry.push(Geometry::Top(value.parse().unwrap())),
+                _ => return Err(Error::Syntax(String::from_str("Invalid Geometry Prefix {prefix}")?)),
+            }
+        }
+        Ok(geometry.into_iter())
+    }
+}
+
+impl fmt::Display for Geometry {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Geometry::Width(width) => write!(f, "w{width}"),
             Geometry::Height(height) => write!(f, "h{height}"),
@@ -58,8 +78,8 @@ pub enum Search {
     Desktop(i8),
 }
 
-impl Display for Search {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for Search {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Search::ClassName(class_name) => write!(f, "class={class_name}"),
             Search::Title(title) => write!(f, "title={title}"),
@@ -76,8 +96,8 @@ pub enum Action {
     Geometry(Geometry),
 }
 
-impl Display for Action {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for Action {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Action::ToDesktop(desktop) => write!(f, "to-desktop={desktop}"),
             Action::ToScreen(screen) => write!(f, "to-screen={screen}"),

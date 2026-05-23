@@ -1,3 +1,4 @@
+use crate::{Action, Search};
 use clap::Parser;
 use regex::Regex;
 
@@ -49,4 +50,34 @@ pub struct Config {
     /// list available screens
     #[arg(long)]
     list_screens: bool,
+}
+
+impl Config {
+    pub fn search(&self) -> impl Iterator<Item = Search> {
+        let mut search = Vec::new();
+        if let Some(class) = &self.class {
+            search.push(Search::ClassName(class.clone()));
+        }
+        if let Some(title) = &self.title {
+            search.push(Search::Title(title.clone()));
+        }
+        if let Some(screen) = &self.screen {
+            search.push(Search::Screen(screen.clone()));
+        }
+        if let Some(desktop) = &self.desktop {
+            search.push(Search::Desktop(desktop.clone()));
+        }
+        search.into_iter()
+    }
+
+    pub fn action(&self) -> impl Iterator<Item = Action> {
+        let mut action = Vec::new();
+        if let Some(to_desktop) = &self.to_desktop {
+            action.push(Action::ToDesktop(to_desktop.clone()));
+        }
+        if let Some(to_screen) = &self.to_screen {
+            action.push(Action::ToScreen(to_screen.clone()));
+        }
+        action.into_iter()
+    }
 }
