@@ -1,19 +1,19 @@
 {
-  "KPackageStructure": "KWin/Script",
-  "KPlugin": {
-    "Authors": [
-      {
-        "Email": "thiago@tvidal.uk",
-        "Name": "Thiago Vidal"
-      }
-    ],
-    "Description": "Forwards KWin window and desktop events to the kdetool DBus service",
-    "EnabledByDefault": true,
-    "Id": "kdetool",
-    "License": "MIT",
-    "Name": "kdetool",
-    "Version": "0.1.0"
-  },
-  "X-Plasma-API": "javascript",
-  "X-Plasma-MainScript": "code/main.js"
+    "KPackageStructure"  : "KWin/Script",
+    "KPlugin"            : {
+        "Authors"         : [
+            {
+                "Email": "thiago@tvidal.uk",
+                "Name" : "Thiago Oliveira Vidal"
+            }
+        ],
+        "Description"     : "Managed KDE Windows via command line",
+        "EnabledByDefault": true,
+        "Id"              : "kdetool",
+        "Name"            : "kdetool",
+        "License"         : "MIT",
+        "Version"         : "0.1.0"
+    },
+    "X-Plasma-API"       : "javascript",
+    "X-Plasma-MainScript": "code/main.js"
 }
