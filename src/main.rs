@@ -62,9 +62,9 @@ impl Geometry {
         for cap in GEOMETRY_PARSER.captures_iter(s) {
             if let Some(prefix) = cap.get(1) {
                 let digits = &cap[2];
-                let value: u32 = digits
-                    .parse()
-                    .map_err(|err| Error::Syntax(format!("invalid geometry value {digits:?}: {err}")))?;
+                let value: u32 = digits.parse().map_err(|err| {
+                    Error::Syntax(format!("invalid geometry value {digits:?}: {err}"))
+                })?;
                 let length = if cap[3].is_empty() {
                     Length::Pixels(value)
                 } else {
@@ -103,7 +103,7 @@ impl fmt::Display for Geometry {
             Geometry::Height(height) => write!(f, "h{height}"),
             Geometry::Left(left) => write!(f, "x{left}"),
             Geometry::Top(top) => write!(f, "y{top}"),
-            Geometry::Maximize(maximize) => write!(f, "{maximize}"),
+            Geometry::Maximize(maximize) => write!(f, "m{maximize}"),
         }
     }
 }
