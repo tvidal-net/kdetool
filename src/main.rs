@@ -45,13 +45,17 @@ impl Geometry {
     pub fn parse(s: &str) -> Result<impl Iterator<Item = Geometry>, Error> {
         let mut geometry = Vec::new();
         for cap in GEOMETRY_PARSER.captures_iter(s) {
-            let (prefix, value, percent) = (&cap[1], &cap[2], !cap[3].is_empty());
+            let prefix = &cap[1];
+            let value: u32 = cap[2]
+                .parse()
+                .map_err(|err| Error::Syntax(format!("invalid geometry value {:?}: {err}", &cap[2])))?;
+            let _percent = !cap[3].is_empty(); // TODO: proportional (%) values are not represented in Geometry yet
             match prefix {
-                "w" => geometry.push(Geometry::Width(value.parse().unwrap())),
-                "h" => geometry.push(Geometry::Height(value.parse().unwrap())),
-                "x" => geometry.push(Geometry::Left(value.parse().unwrap())),
-                "y" => geometry.push(Geometry::Top(value.parse().unwrap())),
-                _ => return Err(Error::Syntax(String::from_str("Invalid Geometry Prefix {prefix}")?)),
+                "w" => geometry.push(Geometry::Width(value)),
+                "h" => geometry.push(Geometry::Height(value)),
+                "x" => geometry.push(Geometry::Left(value)),
+                "y" => geometry.push(Geometry::Top(value)),
+                _ => unreachable!("geometry regex only captures w, h, x, or y"),
             }
         }
         Ok(geometry.into_iter())
@@ -171,5 +175,19 @@ mod test {
     #[test]
     fn geometry_top() {
         assert_eq!(Geometry::Top(100).to_string(), "y100");
+    }
+
+    #[test]
+    fn geometry_parse_round_trip() {
+        let parsed: String = Geometry::parse("w1280h720x0y0")
+            .unwrap()
+            .map(|g| g.to_string())
+            .collect();
+        assert_eq!(parsed, "w1280h720x0y0");
+    }
+
+    #[test]
+    fn geometry_parse_empty() {
+        assert_eq!(Geometry::parse("").unwrap().count(), 0);
     }
 }
