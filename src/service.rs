@@ -11,9 +11,9 @@ use dbus_crossroads::{Crossroads, MethodErr};
 
 // DBus identity of the tool, kept in sync with the SERVICE/PATH/INTERFACE
 // constants at the top of kwin/contents/code/main.js.
-const BUS_NAME: &str = "uk.tvidal.KDETool";
-const OBJECT_PATH: &str = "/Windows";
-const INTERFACE: &str = "uk.tvidal.WindowManager";
+const BUS_NAME: &str = "uk.tvidal";
+const OBJECT_PATH: &str = "/WindowManager";
+const INTERFACE: &str = "uk.tvidal.KDETool";
 
 // KWin exposes script-registered shortcuts through its kglobalaccel component;
 // invoking one is how we wake the persistent script without binding a key.

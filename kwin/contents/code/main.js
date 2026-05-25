@@ -1,14 +1,14 @@
-const SERVICE = "uk.tvidal";
-const PATH = "/WindowManager";
+const BUS_NAME = "uk.tvidal";
+const OBJECT_PATH = "/WindowManager";
 const INTERFACE = "uk.tvidal.KDETool";
 
-function processAction(action) {
+const processAction = (action) => {
     print(`kdetool: ${action}`);
 }
 
 const fetchNextAction = () => callDBus(
-    SERVICE,
-    PATH,
+    BUS_NAME,
+    OBJECT_PATH,
     INTERFACE,
     "fetchNextAction",
     [],
