@@ -1,4 +1,5 @@
 use crate::cmd::Config;
+use crate::kwin::{KWin, KWinClient};
 use clap::Parser;
 use regex::{Error, Regex};
 use std::process::ExitCode;
@@ -147,6 +148,12 @@ impl fmt::Display for Action {
 fn main() -> ExitCode {
     let config = Config::parse();
     println!("{config:?}");
+
+    let kwin = KWinClient::new();
+    let loaded = kwin.is_script_loaded().unwrap();
+    println!("script loaded: {}", loaded);
+    kwin.invoke_shortcut().unwrap();
+
     ExitCode::SUCCESS
 }
 
