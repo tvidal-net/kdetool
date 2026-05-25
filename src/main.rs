@@ -11,7 +11,7 @@ mod service;
 
 pub const TIMEOUT: Duration = Duration::from_secs(3);
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Maximize {
     horizontal: bool,
     vertical: bool,
@@ -29,33 +29,67 @@ impl fmt::Display for Maximize {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
+pub enum Length {
+    Pixels(u32),
+    Percent(u32),
+}
+
+impl fmt::Display for Length {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Length::Pixels(value) => write!(f, "{value}"),
+            Length::Percent(value) => write!(f, "{value}%"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum Geometry {
-    Width(u32),
-    Height(u32),
-    Left(u32),
-    Top(u32),
+    Width(Length),
+    Height(Length),
+    Left(Length),
+    Top(Length),
     Maximize(Maximize),
 }
 
 static GEOMETRY_PARSER: sync::LazyLock<Regex> =
-    sync::LazyLock::new(|| Regex::new(r"([whxy])(\d+)(%?)").unwrap());
+    sync::LazyLock::new(|| Regex::new(r"(?i)([whxy])(\d+)(%?)|m([vh]+)").unwrap());
 
 impl Geometry {
     pub fn parse(s: &str) -> Result<impl Iterator<Item = Geometry>, Error> {
         let mut geometry = Vec::new();
         for cap in GEOMETRY_PARSER.captures_iter(s) {
-            let prefix = &cap[1];
-            let value: u32 = cap[2]
-                .parse()
-                .map_err(|err| Error::Syntax(format!("invalid geometry value {:?}: {err}", &cap[2])))?;
-            let _percent = !cap[3].is_empty(); // TODO: proportional (%) values are not represented in Geometry yet
-            match prefix {
-                "w" => geometry.push(Geometry::Width(value)),
-                "h" => geometry.push(Geometry::Height(value)),
-                "x" => geometry.push(Geometry::Left(value)),
-                "y" => geometry.push(Geometry::Top(value)),
-                _ => unreachable!("geometry regex only captures w, h, x, or y"),
+            if let Some(prefix) = cap.get(1) {
+                let digits = &cap[2];
+                let value: u32 = digits
+                    .parse()
+                    .map_err(|err| Error::Syntax(format!("invalid geometry value {digits:?}: {err}")))?;
+                let length = if cap[3].is_empty() {
+                    Length::Pixels(value)
+                } else {
+                    Length::Percent(value)
+                };
+                geometry.push(match prefix.as_str().to_ascii_lowercase().as_str() {
+                    "w" => Geometry::Width(length),
+                    "h" => Geometry::Height(length),
+                    "x" => Geometry::Left(length),
+                    "y" => Geometry::Top(length),
+                    _ => unreachable!("geometry regex only captures w, h, x, or y"),
+                });
+            } else if let Some(directions) = cap.get(4) {
+                let mut maximize = Maximize {
+                    horizontal: false,
+                    vertical: false,
+                };
+                for direction in directions.as_str().chars() {
+                    match direction.to_ascii_lowercase() {
+                        'v' => maximize.vertical = true,
+                        'h' => maximize.horizontal = true,
+                        _ => unreachable!("maximize regex only captures v or h"),
+                    }
+                }
+                geometry.push(Geometry::Maximize(maximize));
             }
         }
         Ok(geometry.into_iter())
@@ -119,6 +153,7 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod test {
     use crate::Geometry;
+    use crate::Length;
     use crate::Maximize;
 
     #[test]
@@ -159,22 +194,27 @@ mod test {
 
     #[test]
     fn geometry_width() {
-        assert_eq!(Geometry::Width(100).to_string(), "w100");
+        assert_eq!(Geometry::Width(Length::Pixels(100)).to_string(), "w100");
     }
 
     #[test]
     fn geometry_height() {
-        assert_eq!(Geometry::Height(100).to_string(), "h100");
+        assert_eq!(Geometry::Height(Length::Pixels(100)).to_string(), "h100");
     }
 
     #[test]
     fn geometry_left() {
-        assert_eq!(Geometry::Left(100).to_string(), "x100");
+        assert_eq!(Geometry::Left(Length::Pixels(100)).to_string(), "x100");
     }
 
     #[test]
     fn geometry_top() {
-        assert_eq!(Geometry::Top(100).to_string(), "y100");
+        assert_eq!(Geometry::Top(Length::Pixels(100)).to_string(), "y100");
+    }
+
+    #[test]
+    fn length_percent_display() {
+        assert_eq!(Geometry::Width(Length::Percent(60)).to_string(), "w60%");
     }
 
     #[test]
@@ -189,5 +229,47 @@ mod test {
     #[test]
     fn geometry_parse_empty() {
         assert_eq!(Geometry::parse("").unwrap().count(), 0);
+    }
+
+    #[test]
+    fn geometry_parse_lowercase() {
+        assert_eq!(
+            Geometry::parse("w60%h50%x10y20mvh")
+                .unwrap()
+                .collect::<Vec<_>>(),
+            vec![
+                Geometry::Width(Length::Percent(60)),
+                Geometry::Height(Length::Percent(50)),
+                Geometry::Left(Length::Pixels(10)),
+                Geometry::Top(Length::Pixels(20)),
+                Geometry::Maximize(Maximize {
+                    vertical: true,
+                    horizontal: true,
+                }),
+            ],
+        );
+    }
+
+    #[test]
+    fn geometry_parse_uppercase_matches_lowercase() {
+        assert_eq!(
+            Geometry::parse("W60%H50%X10Y20MVH")
+                .unwrap()
+                .collect::<Vec<_>>(),
+            Geometry::parse("w60%h50%x10y20mvh")
+                .unwrap()
+                .collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
+    fn geometry_parse_maximize_only() {
+        assert_eq!(
+            Geometry::parse("MV").unwrap().collect::<Vec<_>>(),
+            vec![Geometry::Maximize(Maximize {
+                vertical: true,
+                horizontal: false,
+            })],
+        );
     }
 }
