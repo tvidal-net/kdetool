@@ -17,9 +17,9 @@ const INTERFACE: &str = "uk.tvidal.KDETool";
 
 // KWin exposes script-registered shortcuts through its kglobalaccel component;
 // invoking one is how we wake the persistent script without binding a key.
-const KGLOBALACCEL_SERVICE: &str = "org.kde.kglobalaccel";
-const KGLOBALACCEL_PATH: &str = "/component/kwin";
-const KGLOBALACCEL_INTERFACE: &str = "org.kde.kglobalaccel.Component";
+const KWIN_SERVICE: &str = "org.kde.KWin";
+const KWIN_COMPONENT_PATH: &str = "/component/kwin";
+const KWIN_COMPONENT_INTERFACE: &str = "org.kde.kglobalaccel.Component";
 const SHORTCUT_NAME: &str = "kdetoolAction";
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -61,10 +61,9 @@ pub fn run() -> Result<(), Error> {
 
     // Wake the KWin script: its shortcut callback calls fetchNextAction back on
     // us. The name is already owned above, so that callDBus target resolves.
-    let kglobalaccel =
-        connection.with_proxy(KGLOBALACCEL_SERVICE, KGLOBALACCEL_PATH, DEFAULT_TIMEOUT);
+    let component = connection.with_proxy(KWIN_SERVICE, KWIN_COMPONENT_PATH, DEFAULT_TIMEOUT);
     let _: () =
-        kglobalaccel.method_call(KGLOBALACCEL_INTERFACE, "invokeShortcut", (SHORTCUT_NAME,))?;
+        component.method_call(KWIN_COMPONENT_INTERFACE, "invokeShortcut", (SHORTCUT_NAME,))?;
 
     // Serve method calls until fetchNextAction has been answered. The handler
     // sets the flag after its reply is queued, so the next iteration exits with
