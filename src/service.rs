@@ -9,69 +9,79 @@ use dbus::channel::MatchingReceiver;
 use dbus::message::MatchRule;
 use dbus_crossroads::{Crossroads, MethodErr};
 
-// DBus identity of the tool, kept in sync with the SERVICE/PATH/INTERFACE
-// constants at the top of kwin/contents/code/main.js.
+// DBus identity of the tool, kept in sync with the constants at the top of
+// kwin/contents/code/main.js.
 const BUS_NAME: &str = "uk.tvidal";
 const OBJECT_PATH: &str = "/WindowManager";
 const INTERFACE: &str = "uk.tvidal.KDETool";
 
-// KWin exposes script-registered shortcuts through its kglobalaccel component;
-// invoking one is how we wake the persistent script without binding a key.
-const KWIN_SERVICE: &str = "org.kde.KWin";
-const KWIN_COMPONENT_PATH: &str = "/component/kwin";
-const KWIN_COMPONENT_INTERFACE: &str = "org.kde.kglobalaccel.Component";
-const SHORTCUT_NAME: &str = "kdetoolAction";
-
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(5);
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
-pub fn run() -> Result<(), Error> {
-    let connection = Connection::new_session()?;
-    match connection.request_name(BUS_NAME, false, true, false)? {
-        RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner => {}
-        reply => {
-            return Err(Error::new_custom(
-                "uk.tvidal.KDETool.NameNotAcquired",
-                &format!("could not acquire {BUS_NAME}: {reply:?}"),
-            ));
+pub struct Service {
+    connection: Connection,
+    stop: Arc<AtomicBool>,
+}
+
+impl Service {
+    /// Owns the well-known name and registers the fetchNextAction and sendReply
+    /// methods, but does not process anything yet. The caller is expected to
+    /// trigger the KWin script (invokeShortcut) before calling [`serve`], so the
+    /// script's callbacks resolve against an already-owned name; they queue on
+    /// the connection until the serve loop processes them.
+    pub fn register() -> Result<Self, Error> {
+        let connection = Connection::new_session()?;
+        match connection.request_name(BUS_NAME, false, true, false)? {
+            RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner => {}
+            reply => {
+                return Err(Error::new_custom(
+                    "uk.tvidal.KDETool.NameNotAcquired",
+                    &format!("could not acquire {BUS_NAME}: {reply:?}"),
+                ));
+            }
         }
-    }
 
-    let stop = Arc::new(AtomicBool::new(false));
-    let stop_handler = Arc::clone(&stop);
+        let stop = Arc::new(AtomicBool::new(false));
+        let stop_handler = Arc::clone(&stop);
 
-    let mut crossroads = Crossroads::new();
-    let interface = crossroads.register(INTERFACE, |builder| {
-        builder.method(
-            "fetchNextAction",
-            (),
-            ("action",),
-            move |_, _, _: ()| -> Result<(String,), MethodErr> {
-                stop_handler.store(true, Ordering::SeqCst);
-                Ok(("Hello World".to_string(),))
-            },
+        let mut crossroads = Crossroads::new();
+        let interface = crossroads.register(INTERFACE, |builder| {
+            builder.method(
+                "fetchNextAction",
+                (),
+                ("action",),
+                |_, _, _: ()| -> Result<(String,), MethodErr> {
+                    Ok(("Hello World".to_string(),))
+                },
+            );
+            builder.method(
+                "sendReply",
+                ("reply",),
+                (),
+                move |_, _, (reply,): (String,)| -> Result<(), MethodErr> {
+                    println!("{reply}");
+                    stop_handler.store(true, Ordering::SeqCst);
+                    Ok(())
+                },
+            );
+        });
+        crossroads.insert(OBJECT_PATH, &[interface], ());
+
+        connection.start_receive(
+            MatchRule::new_method_call(),
+            Box::new(move |msg, conn| crossroads.handle_message(msg, conn).is_ok()),
         );
-    });
-    crossroads.insert(OBJECT_PATH, &[interface], ());
 
-    connection.start_receive(
-        MatchRule::new_method_call(),
-        Box::new(move |msg, conn| crossroads.handle_message(msg, conn).is_ok()),
-    );
-
-    // Wake the KWin script: its shortcut callback calls fetchNextAction back on
-    // us. The name is already owned above, so that callDBus target resolves.
-    let component = connection.with_proxy(KWIN_SERVICE, KWIN_COMPONENT_PATH, DEFAULT_TIMEOUT);
-    let _: () =
-        component.method_call(KWIN_COMPONENT_INTERFACE, "invokeShortcut", (SHORTCUT_NAME,))?;
-
-    // Serve method calls until fetchNextAction has been answered. The handler
-    // sets the flag after its reply is queued, so the next iteration exits with
-    // "Hello World" already on its way back to the script.
-    while !stop.load(Ordering::SeqCst) {
-        connection.process(POLL_INTERVAL)?;
+        Ok(Self { connection, stop })
     }
 
-    connection.release_name(BUS_NAME)?;
-    Ok(())
+    /// Processes incoming method calls until sendReply flips the stop flag, then
+    /// drops the well-known name. The connection (and the registered object) is
+    /// released when the returned value goes out of scope.
+    pub fn serve(self) -> Result<(), Error> {
+        while !self.stop.load(Ordering::SeqCst) {
+            self.connection.process(POLL_INTERVAL)?;
+        }
+        self.connection.release_name(BUS_NAME)?;
+        Ok(())
+    }
 }

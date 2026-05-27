@@ -1,5 +1,6 @@
 use crate::cmd::Config;
 use crate::kwin::{KWin, KWinClient};
+use crate::service::Service;
 use clap::Parser;
 use regex::{Error, Regex};
 use std::process::ExitCode;
@@ -146,15 +147,24 @@ impl fmt::Display for Action {
 }
 
 fn main() -> ExitCode {
-    let config = Config::parse();
-    println!("{config:?}");
+    let _config = Config::parse();
+    match run() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(error) => {
+            eprintln!("kdetool: {error}");
+            ExitCode::FAILURE
+        }
+    }
+}
 
+// Registers the DBus service first so the name is owned, then wakes the KWin
+// script via the shortcut, then serves the fetchNextAction/sendReply round-trip
+// until sendReply ends the loop.
+fn run() -> Result<(), dbus::Error> {
     let kwin = KWinClient::new();
-    let loaded = kwin.is_script_loaded().unwrap();
-    println!("script loaded: {}", loaded);
-    kwin.invoke_shortcut().unwrap();
-
-    ExitCode::SUCCESS
+    let service = Service::register()?;
+    kwin.invoke_shortcut()?;
+    service.serve()
 }
 
 #[cfg(test)]
