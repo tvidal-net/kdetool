@@ -1,0 +1,113 @@
+# qdbus6 org.kde.KWin /org/kde/KWin/InputDevice/event0
+
+property read bool org.kde.KWin.InputDevice.alphaNumericKeyboard
+property readwrite QString org.kde.KWin.InputDevice.calibrationMatrix
+property readwrite bool org.kde.KWin.InputDevice.clickMethodAreas
+property readwrite bool org.kde.KWin.InputDevice.clickMethodClickfinger
+property read {D-Bus type"au"} org.kde.KWin.InputDevice.currentModes
+property read QString org.kde.KWin.InputDevice.defaultCalibrationMatrix
+property read bool org.kde.KWin.InputDevice.defaultClickMethodAreas
+property read bool org.kde.KWin.InputDevice.defaultClickMethodClickfinger
+property read {D-Bus type"(dddd)"} org.kde.KWin.InputDevice.defaultInputArea
+property read bool org.kde.KWin.InputDevice.defaultMapToWorkspace
+property read {D-Bus type"(dddd)"} org.kde.KWin.InputDevice.defaultOutputArea
+property read double org.kde.KWin.InputDevice.defaultPointerAcceleration
+property read bool org.kde.KWin.InputDevice.defaultPointerAccelerationProfileAdaptive
+property read bool org.kde.KWin.InputDevice.defaultPointerAccelerationProfileFlat
+property read QString org.kde.KWin.InputDevice.defaultPressureCurve
+property read double org.kde.KWin.InputDevice.defaultPressureRangeMax
+property read double org.kde.KWin.InputDevice.defaultPressureRangeMin
+property read uint org.kde.KWin.InputDevice.defaultRotation
+property read uint org.kde.KWin.InputDevice.defaultScrollButton
+property read QString org.kde.KWin.InputDevice.deviceGroupId
+property readwrite bool org.kde.KWin.InputDevice.disableEventsOnExternalMouse
+property read bool org.kde.KWin.InputDevice.disableEventsOnExternalMouseEnabledByDefault
+property readwrite bool org.kde.KWin.InputDevice.disableWhileTyping
+property read bool org.kde.KWin.InputDevice.disableWhileTypingEnabledByDefault
+property readwrite bool org.kde.KWin.InputDevice.enabled
+property read bool org.kde.KWin.InputDevice.enabledByDefault
+property read bool org.kde.KWin.InputDevice.gestureSupport
+property readwrite {D-Bus type"(dddd)"} org.kde.KWin.InputDevice.inputArea
+property read bool org.kde.KWin.InputDevice.isVirtual
+property read bool org.kde.KWin.InputDevice.keyboard
+property readwrite bool org.kde.KWin.InputDevice.leftHanded
+property read bool org.kde.KWin.InputDevice.leftHandedEnabledByDefault
+property read bool org.kde.KWin.InputDevice.lidSwitch
+property readwrite bool org.kde.KWin.InputDevice.lmrTapButtonMap
+property read bool org.kde.KWin.InputDevice.lmrTapButtonMapEnabledByDefault
+property readwrite bool org.kde.KWin.InputDevice.mapToWorkspace
+property readwrite bool org.kde.KWin.InputDevice.middleEmulation
+property read bool org.kde.KWin.InputDevice.middleEmulationEnabledByDefault
+property read QString org.kde.KWin.InputDevice.name
+property readwrite bool org.kde.KWin.InputDevice.naturalScroll
+property read bool org.kde.KWin.InputDevice.naturalScrollEnabledByDefault
+property read {D-Bus type"au"} org.kde.KWin.InputDevice.numModes
+property readwrite int org.kde.KWin.InputDevice.orientationDBus
+property readwrite {D-Bus type"(dddd)"} org.kde.KWin.InputDevice.outputArea
+property readwrite QString org.kde.KWin.InputDevice.outputName
+property read bool org.kde.KWin.InputDevice.pointer
+property readwrite double org.kde.KWin.InputDevice.pointerAcceleration
+property readwrite bool org.kde.KWin.InputDevice.pointerAccelerationProfileAdaptive
+property readwrite bool org.kde.KWin.InputDevice.pointerAccelerationProfileFlat
+property readwrite QString org.kde.KWin.InputDevice.pressureCurve
+property readwrite double org.kde.KWin.InputDevice.pressureRangeMax
+property readwrite double org.kde.KWin.InputDevice.pressureRangeMin
+property read uint org.kde.KWin.InputDevice.product
+property readwrite uint org.kde.KWin.InputDevice.rotation
+property readwrite uint org.kde.KWin.InputDevice.scrollButton
+property readwrite bool org.kde.KWin.InputDevice.scrollEdge
+property read bool org.kde.KWin.InputDevice.scrollEdgeEnabledByDefault
+property readwrite double org.kde.KWin.InputDevice.scrollFactor
+property readwrite bool org.kde.KWin.InputDevice.scrollOnButtonDown
+property read bool org.kde.KWin.InputDevice.scrollOnButtonDownEnabledByDefault
+property readwrite bool org.kde.KWin.InputDevice.scrollTwoFinger
+property read bool org.kde.KWin.InputDevice.scrollTwoFingerEnabledByDefault
+property read {D-Bus type"(dd)"} org.kde.KWin.InputDevice.size
+property read int org.kde.KWin.InputDevice.supportedButtons
+property read bool org.kde.KWin.InputDevice.supportsCalibrationMatrix
+property read bool org.kde.KWin.InputDevice.supportsClickMethodAreas
+property read bool org.kde.KWin.InputDevice.supportsClickMethodClickfinger
+property read bool org.kde.KWin.InputDevice.supportsDisableEvents
+property read bool org.kde.KWin.InputDevice.supportsDisableEventsOnExternalMouse
+property read bool org.kde.KWin.InputDevice.supportsDisableWhileTyping
+property read bool org.kde.KWin.InputDevice.supportsInputArea
+property read bool org.kde.KWin.InputDevice.supportsLeftHanded
+property read bool org.kde.KWin.InputDevice.supportsLmrTapButtonMap
+property read bool org.kde.KWin.InputDevice.supportsMiddleEmulation
+property read bool org.kde.KWin.InputDevice.supportsNaturalScroll
+property read bool org.kde.KWin.InputDevice.supportsOutputArea
+property read bool org.kde.KWin.InputDevice.supportsPointerAcceleration
+property read bool org.kde.KWin.InputDevice.supportsPointerAccelerationProfileAdaptive
+property read bool org.kde.KWin.InputDevice.supportsPointerAccelerationProfileFlat
+property read bool org.kde.KWin.InputDevice.supportsPressureRange
+property read bool org.kde.KWin.InputDevice.supportsRotation
+property read bool org.kde.KWin.InputDevice.supportsScrollEdge
+property read bool org.kde.KWin.InputDevice.supportsScrollOnButtonDown
+property read bool org.kde.KWin.InputDevice.supportsScrollTwoFinger
+property read bool org.kde.KWin.InputDevice.switchDevice
+property read QString org.kde.KWin.InputDevice.sysName
+property read bool org.kde.KWin.InputDevice.tabletModeSwitch
+property read bool org.kde.KWin.InputDevice.tabletPad
+property read uint org.kde.KWin.InputDevice.tabletPadButtonCount
+property read uint org.kde.KWin.InputDevice.tabletPadDialCount
+property read uint org.kde.KWin.InputDevice.tabletPadRingCount
+property read uint org.kde.KWin.InputDevice.tabletPadStripCount
+property read bool org.kde.KWin.InputDevice.tabletTool
+property readwrite bool org.kde.KWin.InputDevice.tabletToolIsRelative
+property readwrite bool org.kde.KWin.InputDevice.tapAndDrag
+property read bool org.kde.KWin.InputDevice.tapAndDragEnabledByDefault
+property readwrite bool org.kde.KWin.InputDevice.tapDragLock
+property read bool org.kde.KWin.InputDevice.tapDragLockEnabledByDefault
+property read int org.kde.KWin.InputDevice.tapFingerCount
+property readwrite bool org.kde.KWin.InputDevice.tapToClick
+property read bool org.kde.KWin.InputDevice.tapToClickEnabledByDefault
+property read bool org.kde.KWin.InputDevice.touch
+property read bool org.kde.KWin.InputDevice.touchpad
+property read uint org.kde.KWin.InputDevice.vendor
+signal void org.freedesktop.DBus.Properties.PropertiesChanged(QString interface_name, QVariantMap changed_properties, QStringList invalidated_properties)
+method QDBusVariant org.freedesktop.DBus.Properties.Get(QString interface_name, QString property_name)
+method QVariantMap org.freedesktop.DBus.Properties.GetAll(QString interface_name)
+method void org.freedesktop.DBus.Properties.Set(QString interface_name, QString property_name, QDBusVariant value)
+method QString org.freedesktop.DBus.Introspectable.Introspect()
+method QString org.freedesktop.DBus.Peer.GetMachineId()
+method void org.freedesktop.DBus.Peer.Ping()

@@ -1,0 +1,24 @@
+# qdbus6 org.kde.KWin /VirtualDesktopManager
+
+property read uint org.kde.KWin.VirtualDesktopManager.count
+property readwrite QString org.kde.KWin.VirtualDesktopManager.current
+property read {D-Bus type"a(iss)"} org.kde.KWin.VirtualDesktopManager.desktops
+property readwrite bool org.kde.KWin.VirtualDesktopManager.navigationWrappingAround
+property readwrite uint org.kde.KWin.VirtualDesktopManager.rows
+signal void org.kde.KWin.VirtualDesktopManager.countChanged(uint count)
+signal void org.kde.KWin.VirtualDesktopManager.currentChanged(QString id)
+signal void org.kde.KWin.VirtualDesktopManager.desktopCreated(QString id, {D-Bus type"(iss)"} desktopData)
+signal void org.kde.KWin.VirtualDesktopManager.desktopDataChanged(QString id, {D-Bus type"(iss)"} desktopData)
+signal void org.kde.KWin.VirtualDesktopManager.desktopRemoved(QString id)
+signal void org.kde.KWin.VirtualDesktopManager.navigationWrappingAroundChanged(bool navigationWrappingAround)
+signal void org.kde.KWin.VirtualDesktopManager.rowsChanged(uint rows)
+method void org.kde.KWin.VirtualDesktopManager.createDesktop(uint position, QString name)
+method void org.kde.KWin.VirtualDesktopManager.removeDesktop(QString id)
+method void org.kde.KWin.VirtualDesktopManager.setDesktopName(QString id, QString name)
+signal void org.freedesktop.DBus.Properties.PropertiesChanged(QString interface_name, QVariantMap changed_properties, QStringList invalidated_properties)
+method QDBusVariant org.freedesktop.DBus.Properties.Get(QString interface_name, QString property_name)
+method QVariantMap org.freedesktop.DBus.Properties.GetAll(QString interface_name)
+method void org.freedesktop.DBus.Properties.Set(QString interface_name, QString property_name, QDBusVariant value)
+method QString org.freedesktop.DBus.Introspectable.Introspect()
+method QString org.freedesktop.DBus.Peer.GetMachineId()
+method void org.freedesktop.DBus.Peer.Ping()

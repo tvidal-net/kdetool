@@ -1,0 +1,25 @@
+# qdbus6 org.kde.KWin /org/kde/KWin/NightLight
+
+property read bool org.kde.KWin.NightLight.available
+property read uint org.kde.KWin.NightLight.currentTemperature
+property read bool org.kde.KWin.NightLight.daylight
+property read bool org.kde.KWin.NightLight.enabled
+property read bool org.kde.KWin.NightLight.inhibited
+property read uint org.kde.KWin.NightLight.mode
+property read qulonglong org.kde.KWin.NightLight.previousTransitionDateTime
+property read uint org.kde.KWin.NightLight.previousTransitionDuration
+property read bool org.kde.KWin.NightLight.running
+property read qulonglong org.kde.KWin.NightLight.scheduledTransitionDateTime
+property read uint org.kde.KWin.NightLight.scheduledTransitionDuration
+property read uint org.kde.KWin.NightLight.targetTemperature
+method uint org.kde.KWin.NightLight.inhibit()
+method void org.kde.KWin.NightLight.preview(uint temperature)
+method void org.kde.KWin.NightLight.stopPreview()
+method void org.kde.KWin.NightLight.uninhibit(uint cookie)
+signal void org.freedesktop.DBus.Properties.PropertiesChanged(QString interface_name, QVariantMap changed_properties, QStringList invalidated_properties)
+method QDBusVariant org.freedesktop.DBus.Properties.Get(QString interface_name, QString property_name)
+method QVariantMap org.freedesktop.DBus.Properties.GetAll(QString interface_name)
+method void org.freedesktop.DBus.Properties.Set(QString interface_name, QString property_name, QDBusVariant value)
+method QString org.freedesktop.DBus.Introspectable.Introspect()
+method QString org.freedesktop.DBus.Peer.GetMachineId()
+method void org.freedesktop.DBus.Peer.Ping()

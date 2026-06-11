@@ -1,0 +1,15 @@
+# qdbus6 org.kde.KWin /Session
+
+method void org.kde.KWin.Session.aboutToSaveSession(QString name)
+method bool org.kde.KWin.Session.closeWaylandWindows()
+method void org.kde.KWin.Session.finishSaveSession(QString name)
+method void org.kde.KWin.Session.loadSession(QString name)
+method void org.kde.KWin.Session.quit()
+method void org.kde.KWin.Session.setState(uint state)
+signal void org.freedesktop.DBus.Properties.PropertiesChanged(QString interface_name, QVariantMap changed_properties, QStringList invalidated_properties)
+method QDBusVariant org.freedesktop.DBus.Properties.Get(QString interface_name, QString property_name)
+method QVariantMap org.freedesktop.DBus.Properties.GetAll(QString interface_name)
+method void org.freedesktop.DBus.Properties.Set(QString interface_name, QString property_name, QDBusVariant value)
+method QString org.freedesktop.DBus.Introspectable.Introspect()
+method QString org.freedesktop.DBus.Peer.GetMachineId()
+method void org.freedesktop.DBus.Peer.Ping()

@@ -1,0 +1,23 @@
+# qdbus6 org.kde.KWin /component/kwin
+
+property read QString org.kde.kglobalaccel.Component.friendlyName
+property read QString org.kde.kglobalaccel.Component.uniqueName
+signal void org.kde.kglobalaccel.Component.globalShortcutPressed(QString componentUnique, QString shortcutUnique, qlonglong timestamp)
+signal void org.kde.kglobalaccel.Component.globalShortcutReleased(QString componentUnique, QString shortcutUnique, qlonglong timestamp)
+signal void org.kde.kglobalaccel.Component.globalShortcutRepeated(QString componentUnique, QString shortcutUnique, qlonglong timestamp)
+method {D-Bus type"a(ssssssaiai)"} org.kde.kglobalaccel.Component.allShortcutInfos()
+method {D-Bus type"a(ssssssaiai)"} org.kde.kglobalaccel.Component.allShortcutInfos(QString context)
+method bool org.kde.kglobalaccel.Component.cleanUp()
+method QStringList org.kde.kglobalaccel.Component.getShortcutContexts()
+method void org.kde.kglobalaccel.Component.invokeShortcut(QString shortcutName)
+method void org.kde.kglobalaccel.Component.invokeShortcut(QString shortcutName, QString context)
+method bool org.kde.kglobalaccel.Component.isActive()
+method QStringList org.kde.kglobalaccel.Component.shortcutNames()
+method QStringList org.kde.kglobalaccel.Component.shortcutNames(QString context)
+signal void org.freedesktop.DBus.Properties.PropertiesChanged(QString interface_name, QVariantMap changed_properties, QStringList invalidated_properties)
+method QDBusVariant org.freedesktop.DBus.Properties.Get(QString interface_name, QString property_name)
+method QVariantMap org.freedesktop.DBus.Properties.GetAll(QString interface_name)
+method void org.freedesktop.DBus.Properties.Set(QString interface_name, QString property_name, QDBusVariant value)
+method QString org.freedesktop.DBus.Introspectable.Introspect()
+method QString org.freedesktop.DBus.Peer.GetMachineId()
+method void org.freedesktop.DBus.Peer.Ping()

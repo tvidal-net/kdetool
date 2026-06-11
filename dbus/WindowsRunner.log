@@ -1,0 +1,12 @@
+# qdbus6 org.kde.KWin /WindowsRunner
+
+method {D-Bus type"a(sss)"} org.kde.krunner1.Actions()
+method {D-Bus type"a(sssuda{sv})"} org.kde.krunner1.Match(QString query)
+method void org.kde.krunner1.Run(QString matchId, QString actionId)
+signal void org.freedesktop.DBus.Properties.PropertiesChanged(QString interface_name, QVariantMap changed_properties, QStringList invalidated_properties)
+method QDBusVariant org.freedesktop.DBus.Properties.Get(QString interface_name, QString property_name)
+method QVariantMap org.freedesktop.DBus.Properties.GetAll(QString interface_name)
+method void org.freedesktop.DBus.Properties.Set(QString interface_name, QString property_name, QDBusVariant value)
+method QString org.freedesktop.DBus.Introspectable.Introspect()
+method QString org.freedesktop.DBus.Peer.GetMachineId()
+method void org.freedesktop.DBus.Peer.Ping()
