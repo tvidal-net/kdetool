@@ -151,7 +151,7 @@ fn main() -> ExitCode {
     match run() {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
-            eprintln!("kdetool: {error}");
+            eprintln!("kwintool: {error}");
             ExitCode::FAILURE
         }
     }

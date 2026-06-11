@@ -5,7 +5,7 @@ use dbus::Error;
 use std::path;
 
 const KWIN_BUS_NAME: &str = "org.kde.KWin";
-const KWIN_PLUGIN: &str = "kdetool";
+const KWIN_PLUGIN: &str = "kwintool";
 const KWIN_SHORTCUT: &str = "kdetoolAction";
 const KWIN_SCRIPTING: &str = "org.kde.kwin.Scripting";
 

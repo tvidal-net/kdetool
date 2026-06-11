@@ -1,6 +1,6 @@
 const BUS_NAME = "uk.tvidal";
 const OBJECT_PATH = "/WindowManager";
-const INTERFACE = "uk.tvidal.KDETool";
+const INTERFACE = "uk.tvidal.KWinTool";
 
 const sendReply = (reply) => callDBus(
     BUS_NAME,
@@ -11,7 +11,7 @@ const sendReply = (reply) => callDBus(
 );
 
 const processAction = (action) => {
-    print(`kdetool: ${action}`);
+    print(`KWinTool: ${action}`);
     sendReply("OK");
 };
 
@@ -23,5 +23,5 @@ const fetchNextAction = () => callDBus(
     processAction
 );
 
-registerShortcut("kdetoolAction", "Triggers a KDETool action", null, fetchNextAction);
-print("kdetool: KWin script loaded");
+registerShortcut("kdetoolAction", "Triggers a KWinTool action", null, fetchNextAction);
+print("KWinTool: KWin script loaded");

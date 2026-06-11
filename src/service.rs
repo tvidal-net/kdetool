@@ -13,7 +13,7 @@ use dbus_crossroads::{Crossroads, MethodErr};
 // kwin/contents/code/main.js.
 const BUS_NAME: &str = "uk.tvidal";
 const OBJECT_PATH: &str = "/WindowManager";
-const INTERFACE: &str = "uk.tvidal.KDETool";
+const INTERFACE: &str = "uk.tvidal.KWinTool";
 
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
 
@@ -34,7 +34,7 @@ impl Service {
             RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner => {}
             reply => {
                 return Err(Error::new_custom(
-                    "uk.tvidal.KDETool.NameNotAcquired",
+                    "uk.tvidal.KWinTool.NameNotAcquired",
                     &format!("could not acquire {BUS_NAME}: {reply:?}"),
                 ));
             }

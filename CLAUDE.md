@@ -1,4 +1,4 @@
-# kdetool
+# kwintool
 
 This project is aimed at allowing the user to manipulate aspects of KDE through shell scripts
 
@@ -23,7 +23,7 @@ minimum. We should try to use the most popular crates available for each specifi
 ## Project Structure
 
 ```
-+ kdetool
++ kwintool
   |- src
   |  |- (rust source files)
   |- kwin
@@ -135,7 +135,7 @@ search later.
 ### Usage:
 
 ```
-kdetool
+kwintool
 Arguments:
     <exe>       The name of the executable file
     [args...]  Command line arguments to be passed to the executable
@@ -187,7 +187,7 @@ Geometry:
 For example, if I run the tool as:
 
 ```shell
-kdetool dolphin
+kwintool dolphin
 ```
 
 1. We search the window stack list looking for a window whose classname matches the regular

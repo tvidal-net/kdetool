@@ -9,8 +9,8 @@
         ],
         "Description"     : "Managed KDE Windows via command line",
         "EnabledByDefault": true,
-        "Id"              : "kdetool",
-        "Name"            : "kdetool",
+        "Id"              : "kwintool",
+        "Name"            : "kwintool",
         "License"         : "MIT",
         "Version"         : "0.1.0"
     },

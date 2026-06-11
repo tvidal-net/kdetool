@@ -1,2 +1,2 @@
-# kdetool
+# kwintool
 KDE Tools
