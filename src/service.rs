@@ -12,7 +12,7 @@ use dbus_crossroads::{Crossroads, MethodErr};
 // DBus identity of the tool, kept in sync with the constants at the top of
 // kwin/contents/code/main.js.
 const BUS_NAME: &str = "uk.tvidal";
-const OBJECT_PATH: &str = "/WindowManager";
+const OBJECT_PATH: &str = "/KWinTool";
 const INTERFACE: &str = "uk.tvidal.KWinTool";
 
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
@@ -20,6 +20,16 @@ const POLL_INTERVAL: Duration = Duration::from_millis(500);
 pub struct Service {
     connection: Connection,
     stop: Arc<AtomicBool>,
+}
+
+fn fetch_next_action() -> Result<(String,), MethodErr> {
+    Ok(("Hello World".to_string(),))
+}
+
+fn send_reply(args: (String,)) -> Result<(), MethodErr> {
+    let (reply,) = args;
+    println!("Reply: {}", reply);
+    Ok(())
 }
 
 impl Service {
@@ -49,20 +59,9 @@ impl Service {
                 "fetchNextAction",
                 (),
                 ("action",),
-                |_, _, _: ()| -> Result<(String,), MethodErr> {
-                    Ok(("Hello World".to_string(),))
-                },
+                |_, _, _: ()| -> Result<(String,), MethodErr> { Ok(("Hello World".to_string(),)) },
             );
-            builder.method(
-                "sendReply",
-                ("reply",),
-                (),
-                move |_, _, (reply,): (String,)| -> Result<(), MethodErr> {
-                    println!("{reply}");
-                    stop_handler.store(true, Ordering::SeqCst);
-                    Ok(())
-                },
-            );
+            builder.method("sendReply", ("reply",), (), send_reply);
         });
         crossroads.insert(OBJECT_PATH, &[interface], ());
 
