@@ -1,12 +1,12 @@
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
-use dbus::Error;
-use dbus::blocking::Connection;
 use dbus::blocking::stdintf::org_freedesktop_dbus::RequestNameReply;
+use dbus::blocking::Connection;
 use dbus::channel::MatchingReceiver;
 use dbus::message::MatchRule;
+use dbus::Error;
 use dbus_crossroads::{Crossroads, MethodErr};
 
 // DBus identity of the tool, kept in sync with the constants at the top of
@@ -61,7 +61,16 @@ impl Service {
                 ("action",),
                 |_, _, _: ()| -> Result<(String,), MethodErr> { Ok(("Hello World".to_string(),)) },
             );
-            builder.method("sendReply", ("reply",), (), send_reply);
+            builder.method(
+                "sendReply",
+                ("reply",),
+                (),
+                move |_, _, (reply,): (String,)| {
+                    stop_handler.store(true, Ordering::SeqCst);
+                    println!("Received reply: {}", reply);
+                    Ok(())
+                },
+            );
         });
         crossroads.insert(OBJECT_PATH, &[interface], ());
 
