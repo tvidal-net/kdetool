@@ -25,5 +25,5 @@ const fetchNextAction = () => dbus(
     processAction
 );
 
-registerShortcut("kwinToolAction", "Triggers a KWinTool action", null, fetchNextAction);
+registerShortcut("KWinToolAction", "Triggers a KWinTool action", null, fetchNextAction);
 print("KWinTool: KWin Script Loaded");

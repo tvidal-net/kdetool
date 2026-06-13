@@ -12,6 +12,8 @@ pub struct Config {
     args: Vec<String>,
 
     /// set the target window geometry
+    // TODO: applied once window manipulation is wired through the KWin script.
+    #[allow(dead_code)]
     #[arg(short, long)]
     geometry: Option<String>,
 
@@ -44,15 +46,36 @@ pub struct Config {
     verbose: bool,
 
     /// list available desktops
+    // TODO: implemented once desktop queries are routed through the script.
+    #[allow(dead_code)]
     #[arg(long)]
     list_desktops: bool,
 
     /// list available screens
+    // TODO: implemented once screen queries are routed through the script.
+    #[allow(dead_code)]
     #[arg(long)]
     list_screens: bool,
 }
 
 impl Config {
+    /// Name of the executable to focus or launch, if one was provided.
+    pub fn program(&self) -> Option<&str> {
+        self.program.as_deref()
+    }
+
+    /// Arguments forwarded to the executable when it has to be launched.
+    pub fn args(&self) -> &[String] {
+        &self.args
+    }
+
+    /// Whether diagnostic messages should be printed to standard error.
+    pub fn verbose(&self) -> bool {
+        self.verbose
+    }
+
+    // TODO: consumed by the upcoming window search/action pipeline.
+    #[allow(dead_code)]
     pub fn search(&self) -> impl Iterator<Item = Search> {
         let mut search = Vec::new();
         if let Some(class) = &self.class {
@@ -70,6 +93,7 @@ impl Config {
         search.into_iter()
     }
 
+    #[allow(dead_code)]
     pub fn action(&self) -> impl Iterator<Item = Action> {
         let mut action = Vec::new();
         if let Some(to_desktop) = &self.to_desktop {

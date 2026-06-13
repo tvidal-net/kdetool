@@ -9,6 +9,7 @@ use std::{fmt, sync};
 
 mod cmd;
 mod kwin;
+mod proc;
 mod service;
 
 pub const TIMEOUT: Duration = Duration::from_secs(3);
@@ -147,8 +148,8 @@ impl fmt::Display for Action {
 }
 
 fn main() -> ExitCode {
-    let _config = Config::parse();
-    match run() {
+    let config = Config::parse();
+    match run(&config) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             eprintln!("kwintool: {error}");
@@ -157,14 +158,33 @@ fn main() -> ExitCode {
     }
 }
 
-// Registers the DBus service first so the name is owned, then wakes the KWin
-// script via the shortcut, then serves the fetchNextAction/sendReply round-trip
-// until sendReply ends the loop.
-fn run() -> Result<(), dbus::Error> {
-    let kwin = KWinClient::new();
+fn run(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
+    let kwin = KWinClient::new()?;
+
+    // When a target program is given but is not running yet, launch it
+    // detached and stop here: there is no existing window to act on.
+    if let Some(program) = config.program() {
+        if !proc::is_running(program) {
+            if config.verbose() {
+                eprintln!("kwintool: {program} is not running, launching it");
+            }
+            proc::launch(program, config.args())?;
+            return Ok(());
+        }
+    }
+
+    // Everything below drives the bundled KWin script, which must be loaded.
+    if !kwin.is_script_loaded()? {
+        return Err("the KWinTool KWin script is not loaded".into());
+    }
+
+    // Own the service name first so it exists when the script calls back, wake
+    // the script via its shortcut, then process the fetchNextAction/sendReply
+    // round-trip until sendReply ends the loop.
     let service = Service::register()?;
     kwin.invoke_shortcut()?;
-    service.serve()
+    service.serve()?;
+    Ok(())
 }
 
 #[cfg(test)]

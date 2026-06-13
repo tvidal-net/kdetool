@@ -129,17 +129,12 @@ to the system logger via some library we will search later.
 
 1. Parse the command line arguments and build Config structure.
 2. Checks if the `<exe>` provided is already running, similar to what `pgrep`.
-3. If it is not yet running, run it on a separate group with `setsid` and return success exit code.
-4. If it is running, we check if the KWin script is loaded using `kwin::is_script_loaded`.
-5. If it is not yet loaded, we extract the script structure to `~/.local/share/kwin/scripts/KWinTool`, the script files should be embedded into
-   the kwintool executable, preferably zstd compressed or maybe even tar, depending on what the AI agent thinks is the simples and most
-   efficient method.
-6. Once the script is extracted, it needs to be loaded into KWin with `kwin::load_script` which calls the DBus method `kwin::KWIN_BUS_NAME`,
-   `/Scripting`, "method int org.kde.kwin.Scripting.loadScript (QString filePath, QString pluginName)" which should return an integer greater
-   than zero.
-7. With the script loaded successfully, the DBus callback service should be registered with service::register.
-8. Then the script shortcut should be called using `kwin::invoke_shortcut`.
-9. TODO:
+3. If it is not yet running, run it in a separate group with `setsid` and return success exit code.
+4. If it is running, we check if the KWin script is loaded using `kwin::is_script_loaded` and return an error if it isn't.
+5. Register the DBus callback service with `service::register`.
+6. Invoke the script with `kwin::invoke_shortcut` method, which will make the script fire the `fetchNextAction` dbus call.
+7. Run the service with `service::serve` until `sendReply` dbus call is invoked.
+8. Return a success exit code.
 
 ### Usage:
 

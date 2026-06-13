@@ -22,16 +22,6 @@ pub struct Service {
     stop: Arc<AtomicBool>,
 }
 
-fn fetch_next_action() -> Result<(String,), MethodErr> {
-    Ok(("Hello World".to_string(),))
-}
-
-fn send_reply(args: (String,)) -> Result<(), MethodErr> {
-    let (reply,) = args;
-    println!("Reply: {}", reply);
-    Ok(())
-}
-
 impl Service {
     /// Owns the well-known name and registers the fetchNextAction and sendReply
     /// methods, but does not process anything yet. The caller is expected to

@@ -7,10 +7,10 @@
                 "Name" : "Thiago Oliveira Vidal"
             }
         ],
-        "Description"     : "Manages KDE Windows via command line",
+        "Description"     : "Manages KDE Windows via the command line",
         "EnabledByDefault": true,
-        "Id"              : "kwintool",
-        "Name"            : "kwintool",
+        "Id"              : "KWinTool",
+        "Name"            : "KDE KWin Tool",
         "License"         : "MIT",
         "Version"         : "0.1.0"
     },

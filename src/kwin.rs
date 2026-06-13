@@ -1,29 +1,26 @@
 use crate::TIMEOUT;
-use dbus;
 use dbus::blocking::{Connection, Proxy};
 use dbus::Error;
-use std::path;
 
 const KWIN_BUS_NAME: &str = "org.kde.KWin";
 
-const KWIN_SCRIPTING: &str = "/Scripting";
-const KWIN_IS_SCRIPT_LOADED: &str = "org.kde.kwin.Scripting.isScriptLoaded";
-const KWIN_LOAD_SCRIPT: &str = "org.kde.kwin.Scripting.loadScript";
-const KWIN_START: &str = "org.kde.kwin.Scripting.start";
+const KWIN_SCRIPTING_PATH: &str = "/Scripting";
+const KWIN_SCRIPTING_INTERFACE: &str = "org.kde.kwin.Scripting";
+const KWIN_IS_SCRIPT_LOADED: &str = "isScriptLoaded";
 
-const KWIN_COMPONENT: &str = "/component/kwin";
-const KWIN_INVOKE_SHORTCUT: &str = "org.kde.kglobalaccel.Component.invokeShortcut";
+const KWIN_COMPONENT_PATH: &str = "/component/kwin";
+const KWIN_COMPONENT_INTERFACE: &str = "org.kde.kglobalaccel.Component";
+const KWIN_INVOKE_SHORTCUT: &str = "invokeShortcut";
 
-const KWIN_PATH: &str = "/KWin";
-const KWIN_QUERY_WINDOW_INFO: &str = "org.kde.kwin.KWin.queryWindowInfo";
-
+// Identifiers of the bundled KWin script and the shortcut it registers, kept in
+// sync with the constants at the top of kwin/contents/code/main.js.
 const KWIN_PLUGIN: &str = "KWinTool";
 const KWIN_SHORTCUT: &str = "KWinToolAction";
 
 pub trait KWin {
+    /// Reports whether the bundled KWin script is currently loaded.
     fn is_script_loaded(&self) -> Result<bool, Error>;
-    fn load_script(&self, path: &path::Path) -> Result<i32, Error>;
-    fn start(&self) -> Result<(), Error>;
+    /// Triggers the script's shortcut, making it call back into our service.
     fn invoke_shortcut(&self) -> Result<(), Error>;
 }
 
@@ -32,50 +29,33 @@ pub struct KWinClient {
 }
 
 impl KWinClient {
-    pub fn new() -> Self {
-        Self {
-            connection: Connection::new_session().unwrap(),
-        }
+    pub fn new() -> Result<Self, Error> {
+        Ok(Self {
+            connection: Connection::new_session()?,
+        })
     }
 
     fn dbus<'a>(&self, path: &'a str) -> Proxy<'a, &Connection> {
         Proxy::new(KWIN_BUS_NAME, path, TIMEOUT, &self.connection)
     }
-
-    fn scripting<'a>(&self) -> Proxy<'a, &Connection> {
-        self.dbus(KWIN_SCRIPTING)
-    }
-
-    fn component<'a>(&self) -> Proxy<'a, &Connection> {
-        self.dbus(KWIN_COMPONENT)
-    }
-
-    fn kwin<'a>(&self) -> Proxy<'a, &Connection> {
-        self.dbus(KWIN_PATH)
-    }
 }
 
 impl KWin for KWinClient {
     fn is_script_loaded(&self) -> Result<bool, Error> {
-        self.scripting()
-            .method_call(KWIN_SCRIPTING, KWIN_IS_SCRIPT_LOADED, (KWIN_PLUGIN,))
-            .map(|(reply,)| reply)
-    }
-
-    fn load_script(&self, path: &path::Path) -> Result<i32, Error> {
-        let path = path.to_str().unwrap();
-        self.scripting()
-            .method_call(KWIN_SCRIPTING, KWIN_LOAD_SCRIPT, (path, KWIN_PLUGIN))
-            .map(|(reply,)| reply)
-    }
-
-    fn start(&self) -> Result<(), Error> {
-        self.scripting()
-            .method_call(KWIN_SCRIPTING, KWIN_START, ())
+        self.dbus(KWIN_SCRIPTING_PATH)
+            .method_call(
+                KWIN_SCRIPTING_INTERFACE,
+                KWIN_IS_SCRIPT_LOADED,
+                (KWIN_PLUGIN,),
+            )
+            .map(|(loaded,): (bool,)| loaded)
     }
 
     fn invoke_shortcut(&self) -> Result<(), Error> {
-        self.component()
-            .method_call(KWIN_COMPONENT, KWIN_INVOKE_SHORTCUT, (KWIN_SHORTCUT,))
+        self.dbus(KWIN_COMPONENT_PATH).method_call(
+            KWIN_COMPONENT_INTERFACE,
+            KWIN_INVOKE_SHORTCUT,
+            (KWIN_SHORTCUT,),
+        )
     }
 }
