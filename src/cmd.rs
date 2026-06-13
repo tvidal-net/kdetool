@@ -74,6 +74,20 @@ impl Config {
         self.verbose
     }
 
+    /// Resource-class pattern used to locate the target window. An explicit
+    /// `--class` wins; otherwise the executable name is matched exactly, as
+    /// documented (e.g. `dolphin` becomes `^dolphin$`). The pattern is matched
+    /// case-insensitively by the KWin script.
+    pub fn target_class(&self) -> Option<String> {
+        match &self.class {
+            Some(class) => Some(class.as_str().to_string()),
+            None => self
+                .program
+                .as_deref()
+                .map(|program| format!("^{}$", regex::escape(program))),
+        }
+    }
+
     // TODO: consumed by the upcoming window search/action pipeline.
     #[allow(dead_code)]
     pub fn search(&self) -> impl Iterator<Item = Search> {

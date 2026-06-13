@@ -147,10 +147,14 @@ impl fmt::Display for Action {
     }
 }
 
+// Exit code used when the target program is running but no matching window
+// could be activated, mirroring "command not found" semantics for scripts.
+const NO_WINDOW: u8 = 127;
+
 fn main() -> ExitCode {
     let config = Config::parse();
     match run(&config) {
-        Ok(()) => ExitCode::SUCCESS,
+        Ok(code) => code,
         Err(error) => {
             eprintln!("kwintool: {error}");
             ExitCode::FAILURE
@@ -158,18 +162,18 @@ fn main() -> ExitCode {
     }
 }
 
-fn run(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
+fn run(config: &Config) -> Result<ExitCode, Box<dyn std::error::Error>> {
     let kwin = KWinClient::new()?;
 
     // When a target program is given but is not running yet, launch it
-    // detached and stop here: there is no existing window to act on.
+    // detached and stop here: there is no existing window to focus.
     if let Some(program) = config.program() {
         if !proc::is_running(program) {
             if config.verbose() {
                 eprintln!("kwintool: {program} is not running, launching it");
             }
             proc::launch(program, config.args())?;
-            return Ok(());
+            return Ok(ExitCode::SUCCESS);
         }
     }
 
@@ -178,13 +182,31 @@ fn run(config: &Config) -> Result<(), Box<dyn std::error::Error>> {
         return Err("the KWinTool KWin script is not loaded".into());
     }
 
+    // Hand the script an action describing the window to activate. With no
+    // target class there is nothing to focus, so the round-trip is a no-op.
+    let action = match config.target_class() {
+        Some(class) => serde_json::json!({ "type": "activate", "class": class }),
+        None => serde_json::json!({ "type": "none" }),
+    };
+    if config.verbose() {
+        eprintln!("kwintool: action {action}");
+    }
+
     // Own the service name first so it exists when the script calls back, wake
     // the script via its shortcut, then process the fetchNextAction/sendReply
-    // round-trip until sendReply ends the loop.
-    let service = Service::register()?;
+    // round-trip until sendReply reports the outcome.
+    let service = Service::register(action.to_string())?;
     kwin.invoke_shortcut()?;
-    service.serve()?;
-    Ok(())
+    let reply = service.serve()?;
+
+    match reply.as_deref() {
+        Some("activated") | Some("ok") | None => Ok(ExitCode::SUCCESS),
+        Some("not-found") => {
+            eprintln!("kwintool: no window matched the search criteria");
+            Ok(ExitCode::from(NO_WINDOW))
+        }
+        Some(other) => Err(other.into()),
+    }
 }
 
 #[cfg(test)]

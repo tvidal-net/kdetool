@@ -1,5 +1,5 @@
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use dbus::blocking::stdintf::org_freedesktop_dbus::RequestNameReply;
@@ -20,15 +20,17 @@ const POLL_INTERVAL: Duration = Duration::from_millis(500);
 pub struct Service {
     connection: Connection,
     stop: Arc<AtomicBool>,
+    reply: Arc<Mutex<Option<String>>>,
 }
 
 impl Service {
     /// Owns the well-known name and registers the fetchNextAction and sendReply
-    /// methods, but does not process anything yet. The caller is expected to
+    /// methods, but does not process anything yet. `action` is the payload handed
+    /// to the script when it calls fetchNextAction. The caller is expected to
     /// trigger the KWin script (invokeShortcut) before calling [`serve`], so the
     /// script's callbacks resolve against an already-owned name; they queue on
     /// the connection until the serve loop processes them.
-    pub fn register() -> Result<Self, Error> {
+    pub fn register(action: String) -> Result<Self, Error> {
         let connection = Connection::new_session()?;
         match connection.request_name(BUS_NAME, false, true, false)? {
             RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner => {}
@@ -41,23 +43,26 @@ impl Service {
         }
 
         let stop = Arc::new(AtomicBool::new(false));
+        let reply = Arc::new(Mutex::new(None));
+
         let stop_handler = Arc::clone(&stop);
+        let reply_slot = Arc::clone(&reply);
 
         let mut crossroads = Crossroads::new();
-        let interface = crossroads.register(INTERFACE, |builder| {
+        let interface = crossroads.register(INTERFACE, move |builder| {
             builder.method(
                 "fetchNextAction",
                 (),
                 ("action",),
-                |_, _, _: ()| -> Result<(String,), MethodErr> { Ok(("Hello World".to_string(),)) },
+                move |_, _, _: ()| -> Result<(String,), MethodErr> { Ok((action.clone(),)) },
             );
             builder.method(
                 "sendReply",
                 ("reply",),
                 (),
                 move |_, _, (reply,): (String,)| {
+                    *reply_slot.lock().expect("reply mutex poisoned") = Some(reply);
                     stop_handler.store(true, Ordering::SeqCst);
-                    println!("Received reply: {}", reply);
                     Ok(())
                 },
             );
@@ -69,17 +74,20 @@ impl Service {
             Box::new(move |msg, conn| crossroads.handle_message(msg, conn).is_ok()),
         );
 
-        Ok(Self { connection, stop })
+        Ok(Self {
+            connection,
+            stop,
+            reply,
+        })
     }
 
     /// Processes incoming method calls until sendReply flips the stop flag, then
-    /// drops the well-known name. The connection (and the registered object) is
-    /// released when the returned value goes out of scope.
-    pub fn serve(self) -> Result<(), Error> {
+    /// drops the well-known name and returns the status the script reported.
+    pub fn serve(self) -> Result<Option<String>, Error> {
         while !self.stop.load(Ordering::SeqCst) {
             self.connection.process(POLL_INTERVAL)?;
         }
         self.connection.release_name(BUS_NAME)?;
-        Ok(())
+        Ok(self.reply.lock().expect("reply mutex poisoned").take())
     }
 }
