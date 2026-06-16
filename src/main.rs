@@ -189,9 +189,9 @@ impl fmt::Display for Action {
     }
 }
 
-// Exit code used when the target program is running but no matching window
-// could be activated, mirroring "command not found" semantics for scripts.
-const NO_WINDOW: u8 = 127;
+// Exit code used when the KWin script reports a failure ("ERROR <message>"),
+// mirroring "command not found" semantics for scripts.
+const SCRIPT_ERROR: u8 = 127;
 
 fn main() -> ExitCode {
     let config = Config::parse();
@@ -242,8 +242,8 @@ fn run(config: &Config) -> Result<ExitCode, Box<dyn std::error::Error>> {
     let reply = service.serve()?;
 
     match reply.as_deref() {
-        // The script replies "OK <window-id>" on success; surface the id on
-        // stdout only when the caller asked for it with --id.
+        // "OK <window-id>": success. Surface the id on stdout only when the
+        // caller asked for it with --id.
         Some(reply) if reply.starts_with("OK") => {
             if config.id() {
                 let id = reply["OK".len()..].trim();
@@ -253,9 +253,16 @@ fn run(config: &Config) -> Result<ExitCode, Box<dyn std::error::Error>> {
             }
             Ok(ExitCode::SUCCESS)
         }
+        // "NotFound": the window was not found and no process produced one.
         Some("NotFound") => {
             eprintln!("kwintool: no window matched the search criteria");
-            Ok(ExitCode::from(NO_WINDOW))
+            Ok(ExitCode::FAILURE)
+        }
+        // "ERROR <message>": the script itself failed; relay the message.
+        Some(reply) if reply.starts_with("ERROR") => {
+            let message = reply["ERROR".len()..].trim_start_matches([':', ' ']);
+            eprintln!("kwintool: {message}");
+            Ok(ExitCode::from(SCRIPT_ERROR))
         }
         None => Ok(ExitCode::SUCCESS),
         Some(other) => Err(other.into()),

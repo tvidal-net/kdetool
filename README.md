@@ -144,10 +144,14 @@ corner).
 - If the **currently active** window matches the search criteria, focus moves to
   the *next* matching window (so repeated invocations cycle through them).
 - If **no** window matches and a `PROGRAM` was given, it is launched detached.
-- If a matching process is already running but has no window, a warning is
-  printed and the tool exits **127**.
-- Unrecoverable errors (e.g. executable not found, KWin script not loaded) exit
-  **1**. Success exits **0**.
+
+Exit codes:
+
+| Code | Meaning                                                                       |
+|------|-------------------------------------------------------------------------------|
+| `0`  | Success — a matching window was found and the actions were applied.           |
+| `1`  | No window matched the search criteria (the script replied `NotFound`), or the CLI itself failed (e.g. executable not found, KWin script not loaded). |
+| `127`| The KWin script reported an error (`ERROR <message>`); the message is printed to standard error. |
 
 ## Examples
 
