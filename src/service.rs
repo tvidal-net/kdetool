@@ -1,6 +1,8 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::time::{Duration, Instant};
+
+use crate::TIMEOUT;
 
 use dbus::Error;
 use dbus::blocking::Connection;
@@ -81,11 +83,19 @@ impl Service {
         })
     }
 
-    /// Processes incoming method calls until sendReply flips the stop flag, then
-    /// drops the well-known name and returns the status the script reported.
+    /// Processes incoming method calls until sendReply flips the stop flag or
+    /// [`TIMEOUT`] elapses, then drops the well-known name and returns the status
+    /// the script reported. A `None` result means the script never replied within
+    /// the timeout.
     pub fn serve(self) -> Result<Option<String>, Error> {
+        let deadline = Instant::now() + TIMEOUT;
         while !self.stop.load(Ordering::SeqCst) {
-            self.connection.process(POLL_INTERVAL)?;
+            let now = Instant::now();
+            if now >= deadline {
+                break;
+            }
+            self.connection
+                .process((deadline - now).min(POLL_INTERVAL))?;
         }
         self.connection.release_name(BUS_NAME)?;
         Ok(self

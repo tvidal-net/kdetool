@@ -152,6 +152,7 @@ Exit codes:
 | `0`  | Success — a matching window was found and the actions were applied.           |
 | `1`  | No window matched the search criteria (the script replied `NotFound`), or the CLI itself failed (e.g. executable not found, KWin script not loaded). |
 | `127`| The KWin script reported an error (`ERROR <message>`); the message is printed to standard error. |
+| `255`| The KWin script did not reply within the timeout. |
 
 ## Examples
 

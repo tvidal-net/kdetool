@@ -193,6 +193,9 @@ impl fmt::Display for Action {
 // mirroring "command not found" semantics for scripts.
 const SCRIPT_ERROR: u8 = 127;
 
+// Exit code used when the KWin script never replies within TIMEOUT.
+const TIMED_OUT: u8 = 255;
+
 fn main() -> ExitCode {
     let config = Config::parse();
     run(&config).unwrap_or_else(|error| {
@@ -264,7 +267,11 @@ fn run(config: &Config) -> Result<ExitCode, Box<dyn std::error::Error>> {
             eprintln!("kwintool: {message}");
             Ok(ExitCode::from(SCRIPT_ERROR))
         }
-        None => Ok(ExitCode::SUCCESS),
+        // No reply arrived before TIMEOUT elapsed.
+        None => {
+            eprintln!("kwintool: timed out waiting for the KWin script to reply");
+            Ok(ExitCode::from(TIMED_OUT))
+        }
         Some(other) => Err(other.into()),
     }
 }
