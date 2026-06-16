@@ -209,14 +209,14 @@ fn run(config: &Config) -> Result<ExitCode, Box<dyn std::error::Error>> {
 
     // When a target program is given but is not running yet, launch it
     // detached and stop here: there is no existing window to focus.
-    if let Some(program) = config.program() {
-        if !proc::is_running(program) {
-            if config.verbose() {
-                eprintln!("kwintool: {program} is not running, launching it");
-            }
-            proc::launch(program, config.args())?;
-            return Ok(ExitCode::SUCCESS);
+    if let Some(program) = config.program()
+        && !proc::is_running(program)
+    {
+        if config.verbose() {
+            eprintln!("kwintool: {program} is not running, launching it");
         }
+        proc::launch(program, config.args())?;
+        return Ok(ExitCode::SUCCESS);
     }
 
     // With neither a program nor any search criteria there is nothing to focus,

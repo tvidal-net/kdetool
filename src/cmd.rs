@@ -115,10 +115,8 @@ impl Config {
     pub fn command(&self) -> Result<String, Error> {
         let mut parts = Vec::new();
         let has_pattern = self.class.is_some() || self.name.is_some() || self.title.is_some();
-        if !has_pattern {
-            if let Some(program) = &self.program {
-                parts.push(format!("class=^{}$", regex::escape(program)));
-            }
+        if !has_pattern && let Some(program) = &self.program {
+            parts.push(format!("class=^{}$", regex::escape(program)));
         }
         parts.extend(self.search().map(|s| s.to_string()));
 
