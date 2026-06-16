@@ -199,7 +199,7 @@ const TIMED_OUT: u8 = 255;
 fn main() -> ExitCode {
     let config = Config::parse();
     run(&config).unwrap_or_else(|error| {
-        eprintln!("kwintool: {error}");
+        eprintln!("=> ERROR: {error}");
         ExitCode::FAILURE
     })
 }
@@ -212,9 +212,7 @@ fn run(config: &Config) -> Result<ExitCode, Box<dyn std::error::Error>> {
     if let Some(program) = config.program()
         && !proc::is_running(program)
     {
-        if config.verbose() {
-            eprintln!("kwintool: {program} is not running, launching it");
-        }
+        config.vprintln(format!("starting {program}"));
         proc::launch(program, config.args())?;
         return Ok(ExitCode::SUCCESS);
     }
@@ -227,15 +225,13 @@ fn run(config: &Config) -> Result<ExitCode, Box<dyn std::error::Error>> {
 
     // Everything below drives the bundled KWin script, which must be loaded.
     if !kwin.is_script_loaded()? {
-        return Err("the KWinTool KWin script is not loaded".into());
+        return Err("The KWinTool KWin script is not loaded".into());
     }
 
     // Serialise the search criteria and actions into the wire format the script
     // parses (search && search && action;action), validating any geometry.
     let command = config.command()?;
-    if config.verbose() {
-        eprintln!("kwintool: command {command}");
-    }
+    config.vprintln(format!("fetchNextAction({command})"));
 
     // Own the service name first so it exists when the script calls back, wake
     // the script via its shortcut, then process the fetchNextAction/sendReply
@@ -249,27 +245,24 @@ fn run(config: &Config) -> Result<ExitCode, Box<dyn std::error::Error>> {
         // caller asked for it with --id.
         Some(reply) if reply.starts_with("OK") => {
             if config.id() {
-                let id = reply["OK".len()..].trim();
-                if !id.is_empty() {
-                    println!("{id}");
-                }
+                let id = reply[3..].trim();
+                println!("{id}");
             }
             Ok(ExitCode::SUCCESS)
         }
         // "NotFound": the window was not found and no process produced one.
         Some("NotFound") => {
-            eprintln!("kwintool: no window matched the search criteria");
             Ok(ExitCode::FAILURE)
         }
         // "ERROR <message>": the script itself failed; relay the message.
         Some(reply) if reply.starts_with("ERROR") => {
             let message = reply["ERROR".len()..].trim_start_matches([':', ' ']);
-            eprintln!("kwintool: {message}");
+            eprintln!("=> ERROR: {message}");
             Ok(ExitCode::from(SCRIPT_ERROR))
         }
         // No reply arrived before TIMEOUT elapsed.
         None => {
-            eprintln!("kwintool: timed out waiting for the KWin script to reply");
+            eprintln!("=> ERROR: timeout");
             Ok(ExitCode::from(TIMED_OUT))
         }
         Some(other) => Err(other.into()),

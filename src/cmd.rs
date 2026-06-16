@@ -128,6 +128,12 @@ impl Config {
         parts.push(actions.join(";"));
         Ok(parts.join("&&"))
     }
+
+    pub fn vprintln(&self, msg: String) {
+        if self.verbose() {
+            eprintln!("KWinTool: {}", msg);
+        }
+    }
 }
 
 #[cfg(test)]
