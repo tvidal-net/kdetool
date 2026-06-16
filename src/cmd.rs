@@ -79,6 +79,9 @@ impl Config {
         if let Some(name) = &self.name {
             search.push(Search::Name(Pattern::new(name)));
         }
+        if let Some(title) = &self.title {
+            search.push(Search::Title(Pattern::new(title)));
+        }
         search.into_iter()
     }
 
@@ -88,6 +91,9 @@ impl Config {
         let mut actions = Vec::new();
         if let Some(to_desktop) = self.to_desktop {
             actions.push(Action::ToDesktop(to_desktop));
+        }
+        if let Some(to_screen) = &self.to_screen {
+            actions.push(Action::ToScreen(to_screen.as_str().to_string()));
         }
         if !self.id {
             actions.push(Action::Activate);
@@ -186,6 +192,34 @@ mod test {
                 .command()
                 .unwrap(),
             "class=^dolphin$&&desktop=-1;activate",
+        );
+    }
+
+    #[test]
+    fn title_criterion_is_serialised() {
+        assert_eq!(
+            config(&["--title", "Vim"]).command().unwrap(),
+            "title=Vim&&activate",
+        );
+    }
+
+    #[test]
+    fn to_screen_action_precedes_activate() {
+        assert_eq!(
+            config(&["-S", "edp", "dolphin"])
+                .command()
+                .unwrap(),
+            "class=^dolphin$&&screen=edp;activate",
+        );
+    }
+
+    #[test]
+    fn to_desktop_and_to_screen_keep_order() {
+        assert_eq!(
+            config(&["-D", "2", "-S", "edp", "dolphin"])
+                .command()
+                .unwrap(),
+            "class=^dolphin$&&desktop=2;screen=edp;activate",
         );
     }
 
