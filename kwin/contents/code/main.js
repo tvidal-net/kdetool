@@ -15,7 +15,7 @@ const RE_GEO = /([xywhvm])([0-9%]+)?/gi
 
 const DELAY_MS = 50;
 
-let debugEnabled = true;
+let debugEnabled = false;
 
 function logError(err) {
     console.log(`=> ERROR: ${err}`);
