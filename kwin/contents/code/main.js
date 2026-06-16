@@ -2,8 +2,10 @@ const BUS_NAME = "uk.tvidal";
 const OBJECT_PATH = "/KWinTool";
 const INTERFACE = "uk.tvidal.KWinTool";
 
+const WIN_NORMAL = 0;
 const REGEX_FLAGS = "i";
 const CH_NOT = "!";
+
 const SEP_SEARCH = "&&";
 const SEP_ACTION = ";";
 const SEP_VALUE = "=";
@@ -48,7 +50,7 @@ class SimpleMatch {
     matches(win) {
         const winValue = this.getValue(win)
         if (typeof winValue === "number") {
-            return winValue === parseInt(this.value) === this.match;
+            return (winValue === parseInt(this.value)) === this.match;
         }
         return (`${winValue}` === `${this.value}`) === this.match;
     }
@@ -95,8 +97,7 @@ function searchMatch(search) {
         case "title":
             return new RegExpMatch(search, w => w.caption);
         default:
-            logError(`invalid search criteria: ${search}`)
-            break;
+            throw `invalid search criteria: ${search}`
     }
 }
 
@@ -135,7 +136,7 @@ class MoveToScreenAction {
             logDebug(win, `${this} (${screen.manufacturer} ${screen.name} ${screen.model})`);
             return workspace.sendClientToScreen(win, screen);
         }
-        logError(`Screen not found: /${this.screen.source}/${this.screen.flags}`);
+        throw `Screen not found: /${this.screen.source}/${this.screen.flags}`;
     }
 
     toString() {
@@ -154,7 +155,7 @@ class GeometryAction {
         this.geometry = {};
         let match = [];
         while (match = RE_GEO.exec(geometry)) {
-            this.geometry[match[1].toLowerCase()] = match[2];
+            this.geometry[match[1].toUpperCase()] = match[2];
         }
     }
 
@@ -170,23 +171,23 @@ class GeometryAction {
             for (let ch in target) {
                 const value = target[ch];
                 switch (ch) {
-                    case "v":
+                    case "V":
                         maxV = true;
                         break;
 
-                    case "m":
+                    case "M":
                         maxV = maxH = true;
                         break
 
-                    case "w":
+                    case "W":
                         ch = "width";
-                    case "x":
+                    case "X":
                         geo[ch] = computeGeometry(a.width, value);
                         break;
 
-                    case "h":
+                    case "H":
                         ch = "height";
-                    case "y":
+                    case "Y":
                         geo[ch] = computeGeometry(a.height, value);
                         break;
                 }
@@ -226,8 +227,7 @@ function windowAction(action) {
         case "activate":
             return new ActivateAction();
         default:
-            logError(`invalid window action: ${action}`);
-            break;
+            throw `invalid window action: ${action}`;
     }
 }
 
@@ -239,11 +239,12 @@ class WindowAction {
 
         const actions = parts.slice(-1);
         this.actions = actions[0].split(SEP_ACTION)
+            .filter(a => !!a)
             .map(windowAction);
     }
 
     matches(win) {
-        return win.windowType === 0
+        return win.windowType === WIN_NORMAL
             && workspace.activeWindow !== win
             && this.search.every(s => s.matches(win));
     }
@@ -280,9 +281,13 @@ const sendReply = (reply) => dbus(
 );
 
 const processAction = (str) => {
-    const action = new WindowAction(str);
-    const id = action.run();
-    sendReply(id ? `OK ${id}` : "NotFound");
+    try {
+        const action = new WindowAction(str);
+        const id = action.run();
+        sendReply(id ? `OK ${id}` : "NotFound");
+    } catch (err) {
+        sendReply(`ERROR: ${err}`);
+    }
 };
 
 const fetchNextAction = () => dbus(
