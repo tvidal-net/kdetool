@@ -1,10 +1,11 @@
 {
-    "permissions": {
-        "allow": [
-            "Bash(cargo build *)",
-            "Bash(cargo fmt *)",
-            "Bash(cargo run *)",
-            "Bash(git add *)"
-        ]
-    }
+  "permissions": {
+    "allow": [
+      "Bash(cargo build *)",
+      "Bash(cargo fmt *)",
+      "Bash(cargo run *)",
+      "Bash(git add *)",
+      "Bash(cargo test *)"
+    ]
+  }
 }
