@@ -116,7 +116,7 @@ impl Config {
         let mut parts = Vec::new();
         let has_pattern = self.class.is_some() || self.name.is_some() || self.title.is_some();
         if !has_pattern && let Some(program) = &self.program {
-            parts.push(format!("class=^{}$", regex::escape(program)));
+            parts.push(format!("name=^{}$", regex::escape(program)));
         }
         parts.extend(self.search().map(|s| s.to_string()));
 
@@ -140,10 +140,10 @@ mod test {
     }
 
     #[test]
-    fn class_defaults_to_program_name() {
+    fn name_defaults_to_program_name() {
         assert_eq!(
             config(&["dolphin"]).command().unwrap(),
-            "class=^dolphin$&&activate",
+            "name=^dolphin$&&activate",
         );
     }
 
@@ -189,7 +189,7 @@ mod test {
     fn to_desktop_action_precedes_activate() {
         assert_eq!(
             config(&["-D", "1", "dolphin"]).command().unwrap(),
-            "class=^dolphin$&&desktop=1;activate",
+            "name=^dolphin$&&desktop=1;activate",
         );
     }
 
@@ -199,7 +199,7 @@ mod test {
             config(&["-D", "-1", "dolphin"])
                 .command()
                 .unwrap(),
-            "class=^dolphin$&&desktop=-1;activate",
+            "name=^dolphin$&&desktop=-1;activate",
         );
     }
 
@@ -217,7 +217,7 @@ mod test {
             config(&["-S", "edp", "dolphin"])
                 .command()
                 .unwrap(),
-            "class=^dolphin$&&screen=edp;activate",
+            "name=^dolphin$&&screen=edp;activate",
         );
     }
 
@@ -227,7 +227,7 @@ mod test {
             config(&["-D", "2", "-S", "edp", "dolphin"])
                 .command()
                 .unwrap(),
-            "class=^dolphin$&&desktop=2;screen=edp;activate",
+            "name=^dolphin$&&desktop=2;screen=edp;activate",
         );
     }
 
@@ -240,10 +240,10 @@ mod test {
     }
 
     #[test]
-    fn desktop_filter_keeps_the_program_class_default() {
+    fn desktop_filter_keeps_the_program_name_default() {
         assert_eq!(
             config(&["-d", "3", "dolphin"]).command().unwrap(),
-            "class=^dolphin$&&desktop=3&&activate",
+            "name=^dolphin$&&desktop=3&&activate",
         );
     }
 
@@ -261,7 +261,7 @@ mod test {
             config(&["-g", "w60%x20%m", "dolphin"])
                 .command()
                 .unwrap(),
-            "class=^dolphin$&&geometry=w60%x20%m;activate",
+            "name=^dolphin$&&geometry=w60%x20%m;activate",
         );
     }
 
@@ -278,7 +278,7 @@ mod test {
     fn id_omits_the_activate_action() {
         assert_eq!(
             config(&["-i", "dolphin"]).command().unwrap(),
-            "class=^dolphin$&&",
+            "name=^dolphin$&&",
         );
     }
 }
