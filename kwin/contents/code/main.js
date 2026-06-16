@@ -138,6 +138,22 @@ class MoveToScreenAction {
     }
 }
 
+class MaximizeAction {
+    constructor(type) {
+        this.vertical = /v/i.test(type);
+        this.horizontal = /h/i.test(type);
+    }
+
+    execute(win) {
+        logDebug(win, this);
+        win.setMaximize(this.vertical, this.horizontal);
+    }
+
+    toString() {
+        return `Maximize ${this.vertical ? "V" : ""}${this.horizontal ? "H" : ""}`;
+    }
+}
+
 class ActivateAction {
     execute(win) {
         logDebug(win, this);
@@ -156,6 +172,8 @@ function windowAction(action) {
             return new MoveToScreenAction(value);
         case "desktop":
             return new MoveToDesktopAction(value);
+        case "maximize":
+            return new MaximizeAction(value);
         case "activate":
             return new ActivateAction();
         default:
@@ -186,7 +204,7 @@ class WindowAction {
             .find(w => this.matches(w));
 
         if (win) {
-            logDebug(win, this);
+            logDebug(win, `Matches ${this}`);
             this.actions.forEach(a => a.execute(win));
             return true;
         }
@@ -195,7 +213,7 @@ class WindowAction {
 
     toString() {
         const search = this.search.map(s => s.toString());
-        return `matches {${search.join(", ")}}`;
+        return `{${search.join(", ")}}`;
     }
 }
 
