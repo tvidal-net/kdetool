@@ -14,21 +14,20 @@ mod service;
 
 pub const TIMEOUT: Duration = Duration::from_secs(3);
 
+/// Window maximize state, encoded as part of the geometry mini-language: `v`
+/// maximizes vertically while `m` maximizes in both directions.
 #[derive(Debug, PartialEq)]
-pub struct Maximize {
-    horizontal: bool,
-    vertical: bool,
+pub enum Maximize {
+    Vertical,
+    Both,
 }
 
 impl fmt::Display for Maximize {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.vertical {
-            write!(f, "v")?;
+        match self {
+            Maximize::Vertical => write!(f, "v"),
+            Maximize::Both => write!(f, "m"),
         }
-        if self.horizontal {
-            write!(f, "h")?;
-        }
-        Ok(())
     }
 }
 
@@ -56,13 +55,23 @@ pub enum Geometry {
     Maximize(Maximize),
 }
 
-static GEOMETRY_PARSER: sync::LazyLock<Regex> =
-    sync::LazyLock::new(|| Regex::new(r"(?i)([whxy])(\d+)(%?)|m([vh]+)").unwrap());
+// Matches a single geometry token anchored at the start of the remaining input:
+// a `w`/`h`/`x`/`y` coordinate with a value (and optional `%`), or a bare `v`/`m`
+// maximize flag. Anchoring lets the parser reject undefined coordinates such as
+// `a3` instead of silently skipping them.
+static GEOMETRY_TOKEN: sync::LazyLock<Regex> =
+    sync::LazyLock::new(|| Regex::new(r"(?i)^(?:([whxy])(\d+)(%?)|([vm]))").unwrap());
 
 impl Geometry {
-    pub fn parse(s: &str) -> Result<impl Iterator<Item = Geometry>, Error> {
+    /// Parses the geometry mini-language, returning an error if any part of the
+    /// string is not a valid token (e.g. an unknown coordinate like `a3`).
+    pub fn parse(s: &str) -> Result<Vec<Geometry>, Error> {
         let mut geometry = Vec::new();
-        for cap in GEOMETRY_PARSER.captures_iter(s) {
+        let mut rest = s;
+        while !rest.is_empty() {
+            let cap = GEOMETRY_TOKEN
+                .captures(rest)
+                .ok_or_else(|| Error::Syntax(format!("invalid geometry token: {rest:?}")))?;
             if let Some(prefix) = cap.get(1) {
                 let digits = &cap[2];
                 let value: u32 = digits.parse().map_err(|err| {
@@ -80,22 +89,18 @@ impl Geometry {
                     "y" => Geometry::Top(length),
                     _ => unreachable!("geometry regex only captures w, h, x, or y"),
                 });
-            } else if let Some(directions) = cap.get(4) {
-                let mut maximize = Maximize {
-                    horizontal: false,
-                    vertical: false,
-                };
-                for direction in directions.as_str().chars() {
-                    match direction.to_ascii_lowercase() {
-                        'v' => maximize.vertical = true,
-                        'h' => maximize.horizontal = true,
-                        _ => unreachable!("maximize regex only captures v or h"),
-                    }
-                }
-                geometry.push(Geometry::Maximize(maximize));
+            } else if let Some(maximize) = cap.get(4) {
+                geometry.push(Geometry::Maximize(
+                    match maximize.as_str().to_ascii_lowercase().as_str() {
+                        "v" => Maximize::Vertical,
+                        "m" => Maximize::Both,
+                        _ => unreachable!("maximize regex only captures v or m"),
+                    },
+                ));
             }
+            rest = &rest[cap.get(0).unwrap().end()..];
         }
-        Ok(geometry.into_iter())
+        Ok(geometry)
     }
 }
 
@@ -106,25 +111,54 @@ impl fmt::Display for Geometry {
             Geometry::Height(height) => write!(f, "h{height}"),
             Geometry::Left(left) => write!(f, "x{left}"),
             Geometry::Top(top) => write!(f, "y{top}"),
-            Geometry::Maximize(maximize) => write!(f, "m{maximize}"),
+            Geometry::Maximize(maximize) => write!(f, "{maximize}"),
         }
+    }
+}
+
+/// A regular-expression criterion that may be negated with a leading `!`,
+/// mirroring the `field!=value` form understood by the KWin script.
+#[derive(Debug)]
+pub struct Pattern {
+    negated: bool,
+    source: String,
+}
+
+impl Pattern {
+    pub fn new(regex: &Regex) -> Self {
+        match regex.as_str().strip_prefix('!') {
+            Some(source) => Pattern {
+                negated: true,
+                source: source.to_string(),
+            },
+            None => Pattern {
+                negated: false,
+                source: regex.as_str().to_string(),
+            },
+        }
+    }
+
+    /// Writes the criterion as `field=source`, or `field!=source` when negated.
+    fn write(&self, f: &mut fmt::Formatter<'_>, field: &str) -> fmt::Result {
+        let negation = if self.negated { "!" } else { "" };
+        write!(f, "{field}{negation}={}", self.source)
     }
 }
 
 #[derive(Debug)]
 pub enum Search {
-    ClassName(Regex),
-    Title(Regex),
-    Screen(Regex),
+    Class(Pattern),
+    Name(Pattern),
+    Title(Pattern),
     Desktop(i8),
 }
 
 impl fmt::Display for Search {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Search::ClassName(class_name) => write!(f, "class={class_name}"),
-            Search::Title(title) => write!(f, "title={title}"),
-            Search::Screen(screen) => write!(f, "screen={screen}"),
+            Search::Class(pattern) => pattern.write(f, "class"),
+            Search::Name(pattern) => pattern.write(f, "name"),
+            Search::Title(pattern) => pattern.write(f, "title"),
             Search::Desktop(desktop) => write!(f, "desktop={desktop}"),
         }
     }
@@ -133,16 +167,24 @@ impl fmt::Display for Search {
 #[derive(Debug)]
 pub enum Action {
     ToDesktop(i8),
-    ToScreen(Regex),
-    Geometry(Geometry),
+    ToScreen(String),
+    Geometry(Vec<Geometry>),
+    Activate,
 }
 
 impl fmt::Display for Action {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Action::ToDesktop(desktop) => write!(f, "to-desktop={desktop}"),
-            Action::ToScreen(screen) => write!(f, "to-screen={screen}"),
-            Action::Geometry(geometry) => write!(f, "{geometry}"),
+            Action::ToDesktop(desktop) => write!(f, "desktop={desktop}"),
+            Action::ToScreen(screen) => write!(f, "screen={screen}"),
+            Action::Geometry(parts) => {
+                write!(f, "geometry=")?;
+                for part in parts {
+                    write!(f, "{part}")?;
+                }
+                Ok(())
+            }
+            Action::Activate => write!(f, "activate"),
         }
     }
 }
@@ -177,34 +219,48 @@ fn run(config: &Config) -> Result<ExitCode, Box<dyn std::error::Error>> {
         }
     }
 
+    // With neither a program nor any search criteria there is nothing to focus,
+    // so the round-trip would be a no-op: stop before bothering the script.
+    if config.program().is_none() && config.search().next().is_none() {
+        return Ok(ExitCode::SUCCESS);
+    }
+
     // Everything below drives the bundled KWin script, which must be loaded.
     if !kwin.is_script_loaded()? {
         return Err("the KWinTool KWin script is not loaded".into());
     }
 
-    // Hand the script an action describing the window to activate. With no
-    // target class there is nothing to focus, so the round-trip is a no-op.
-    let action = match config.target_class() {
-        Some(class) => serde_json::json!({ "type": "activate", "class": class }),
-        None => serde_json::json!({ "type": "none" }),
-    };
+    // Serialise the search criteria and actions into the wire format the script
+    // parses (search && search && action;action), validating any geometry.
+    let command = config.command()?;
     if config.verbose() {
-        eprintln!("kwintool: action {action}");
+        eprintln!("kwintool: command {command}");
     }
 
     // Own the service name first so it exists when the script calls back, wake
     // the script via its shortcut, then process the fetchNextAction/sendReply
     // round-trip until sendReply reports the outcome.
-    let service = Service::register(action.to_string())?;
+    let service = Service::register(command)?;
     kwin.invoke_shortcut()?;
     let reply = service.serve()?;
 
     match reply.as_deref() {
-        Some("activated") | Some("ok") | None => Ok(ExitCode::SUCCESS),
-        Some("not-found") => {
+        // The script replies "OK <window-id>" on success; surface the id on
+        // stdout only when the caller asked for it with --id.
+        Some(reply) if reply.starts_with("OK") => {
+            if config.id() {
+                let id = reply["OK".len()..].trim();
+                if !id.is_empty() {
+                    println!("{id}");
+                }
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+        Some("NotFound") => {
             eprintln!("kwintool: no window matched the search criteria");
             Ok(ExitCode::from(NO_WINDOW))
         }
+        None => Ok(ExitCode::SUCCESS),
         Some(other) => Err(other.into()),
     }
 }
@@ -216,39 +272,13 @@ mod test {
     use crate::Maximize;
 
     #[test]
-    fn maximize_none() {
-        let m = Maximize {
-            horizontal: false,
-            vertical: false,
-        };
-        assert_eq!(m.to_string(), "");
-    }
-
-    #[test]
     fn maximize_vertical() {
-        let m = Maximize {
-            horizontal: false,
-            vertical: true,
-        };
-        assert_eq!(m.to_string(), "v");
-    }
-
-    #[test]
-    fn maximize_horizontal() {
-        let m = Maximize {
-            horizontal: true,
-            vertical: false,
-        };
-        assert_eq!(m.to_string(), "h");
+        assert_eq!(Maximize::Vertical.to_string(), "v");
     }
 
     #[test]
     fn maximize_both() {
-        let m = Maximize {
-            horizontal: true,
-            vertical: true,
-        };
-        assert_eq!(m.to_string(), "vh");
+        assert_eq!(Maximize::Both.to_string(), "m");
     }
 
     #[test]
@@ -280,6 +310,7 @@ mod test {
     fn geometry_parse_round_trip() {
         let parsed: String = Geometry::parse("w1280h720x0y0")
             .unwrap()
+            .iter()
             .map(|g| g.to_string())
             .collect();
         assert_eq!(parsed, "w1280h720x0y0");
@@ -287,24 +318,19 @@ mod test {
 
     #[test]
     fn geometry_parse_empty() {
-        assert_eq!(Geometry::parse("").unwrap().count(), 0);
+        assert_eq!(Geometry::parse("").unwrap().len(), 0);
     }
 
     #[test]
     fn geometry_parse_lowercase() {
         assert_eq!(
-            Geometry::parse("w60%h50%x10y20mvh")
-                .unwrap()
-                .collect::<Vec<_>>(),
+            Geometry::parse("w60%h50%x10y20m").unwrap(),
             vec![
                 Geometry::Width(Length::Percent(60)),
                 Geometry::Height(Length::Percent(50)),
                 Geometry::Left(Length::Pixels(10)),
                 Geometry::Top(Length::Pixels(20)),
-                Geometry::Maximize(Maximize {
-                    vertical: true,
-                    horizontal: true,
-                }),
+                Geometry::Maximize(Maximize::Both),
             ],
         );
     }
@@ -312,23 +338,31 @@ mod test {
     #[test]
     fn geometry_parse_uppercase_matches_lowercase() {
         assert_eq!(
-            Geometry::parse("W60%H50%X10Y20MVH")
-                .unwrap()
-                .collect::<Vec<_>>(),
-            Geometry::parse("w60%h50%x10y20mvh")
-                .unwrap()
-                .collect::<Vec<_>>(),
+            Geometry::parse("W60%H50%X10Y20M").unwrap(),
+            Geometry::parse("w60%h50%x10y20m").unwrap(),
         );
     }
 
     #[test]
-    fn geometry_parse_maximize_only() {
+    fn geometry_parse_maximize_vertical() {
         assert_eq!(
-            Geometry::parse("MV").unwrap().collect::<Vec<_>>(),
-            vec![Geometry::Maximize(Maximize {
-                vertical: true,
-                horizontal: false,
-            })],
+            Geometry::parse("v").unwrap(),
+            vec![Geometry::Maximize(Maximize::Vertical)],
         );
+    }
+
+    #[test]
+    fn geometry_parse_rejects_unknown_coordinate() {
+        assert!(Geometry::parse("a3").is_err());
+    }
+
+    #[test]
+    fn geometry_parse_rejects_trailing_garbage() {
+        assert!(Geometry::parse("w100z").is_err());
+    }
+
+    #[test]
+    fn geometry_parse_rejects_coordinate_without_value() {
+        assert!(Geometry::parse("w").is_err());
     }
 }
