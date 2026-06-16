@@ -30,6 +30,9 @@ pub fn is_running(program: &str) -> bool {
 pub fn launch(program: &str, args: &[String]) -> io::Result<()> {
     let exe = which(program)
         .map_err(|err| io::Error::new(io::ErrorKind::NotFound, format!("{program}: {err}")))?;
-    Command::new("setsid").arg(exe).args(args).spawn()?;
+    Command::new("setsid")
+        .arg(exe)
+        .args(args)
+        .spawn()?;
     Ok(())
 }

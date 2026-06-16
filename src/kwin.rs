@@ -1,6 +1,6 @@
 use crate::TIMEOUT;
-use dbus::blocking::{Connection, Proxy};
 use dbus::Error;
+use dbus::blocking::{Connection, Proxy};
 
 const KWIN_BUS_NAME: &str = "org.kde.KWin";
 

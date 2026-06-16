@@ -2,11 +2,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use dbus::blocking::stdintf::org_freedesktop_dbus::RequestNameReply;
+use dbus::Error;
 use dbus::blocking::Connection;
+use dbus::blocking::stdintf::org_freedesktop_dbus::RequestNameReply;
 use dbus::channel::MatchingReceiver;
 use dbus::message::MatchRule;
-use dbus::Error;
 use dbus_crossroads::{Crossroads, MethodErr};
 
 // DBus identity of the tool, kept in sync with the constants at the top of
@@ -88,6 +88,10 @@ impl Service {
             self.connection.process(POLL_INTERVAL)?;
         }
         self.connection.release_name(BUS_NAME)?;
-        Ok(self.reply.lock().expect("reply mutex poisoned").take())
+        Ok(self
+            .reply
+            .lock()
+            .expect("reply mutex poisoned")
+            .take())
     }
 }
