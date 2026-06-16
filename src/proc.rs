@@ -13,6 +13,7 @@ pub fn is_running(program: &str) -> bool {
     let name = Path::new(program)
         .file_name()
         .unwrap_or_else(|| OsStr::new(program));
+
     let current = sysinfo::get_current_pid().ok();
 
     let mut system = System::new();

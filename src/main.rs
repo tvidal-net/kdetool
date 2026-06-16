@@ -195,13 +195,10 @@ const NO_WINDOW: u8 = 127;
 
 fn main() -> ExitCode {
     let config = Config::parse();
-    match run(&config) {
-        Ok(code) => code,
-        Err(error) => {
-            eprintln!("kwintool: {error}");
-            ExitCode::FAILURE
-        }
-    }
+    run(&config).unwrap_or_else(|error| {
+        eprintln!("kwintool: {error}");
+        ExitCode::FAILURE
+    })
 }
 
 fn run(config: &Config) -> Result<ExitCode, Box<dyn std::error::Error>> {

@@ -286,7 +286,7 @@ const processAction = (str) => {
         const id = action.run();
         sendReply(id ? `OK ${id}` : "NotFound");
     } catch (err) {
-        sendReply(`ERROR: ${err}`);
+        sendReply(`ERROR ${err}`);
     }
 };
 
