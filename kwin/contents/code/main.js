@@ -8,19 +8,24 @@ const SEP_SEARCH = "&&";
 const SEP_ACTION = ";";
 const SEP_VALUE = "=";
 
+const RE_NAME = /^[a-z]+/i;
+const RE_GEO = /([xywh])([0-9%]+)/gi
+
+const DELAY_MS = 50;
+
 let debugEnabled = true;
 
-const logError = (err) => {
+function logError(err) {
     console.log(`=> ERROR: ${err}`);
 }
 
-const logDebug = (win, s) => {
+function logDebug(win, s) {
     if (debugEnabled) {
         console.log(`{${win.resourceName}:${win.caption}} => ${s}`);
     }
 }
 
-const parse = (str) => {
+function parse(str) {
     const [name, value] = str.split(SEP_VALUE, 2);
     const match = name[name.length - 1] !== CH_NOT;
     return [
@@ -73,7 +78,7 @@ class RegExpMatch {
 }
 
 function searchMatch(search) {
-    const name = search.match(/^[a-z]+/i).toString();
+    const name = search.match(RE_NAME).toString();
     switch (name) {
         case "id":
             return new SimpleMatch(search, w => w.internalId);
@@ -154,6 +159,56 @@ class MaximizeAction {
     }
 }
 
+function computeGeometry(area, value) {
+    const n = parseFloat(value);
+    return /%/.test(value) ? n * area / 100.0 : n;
+}
+
+class GeometryAction {
+
+    constructor(geometry) {
+        this.geometry = {};
+        let match = [];
+        while (match = RE_GEO.exec(geometry)) {
+            this.geometry[match[1]] = match[2];
+        }
+    }
+
+    execute(win) {
+        const target = this.geometry;
+        const timer = new QTimer();
+        timer.singleShot = true;
+        timer.interval = DELAY_MS;
+        timer.timeout.connect(() => {
+            const a = workspace.clientArea(KWin.MaximizeArea, win);
+            let geo = {};
+            for (let ch in target) {
+                const value = target[ch];
+                switch (ch) {
+                    case "w":
+                        ch = "width";
+                    case "x":
+                        geo[ch] = computeGeometry(a.width, value);
+                        break;
+
+                    case "h":
+                        ch = "height";
+                    case "y":
+                        geo[ch] = computeGeometry(a.height, value);
+                        break;
+                }
+            }
+            win.frameGeometry = Object.assign({}, win.frameGeometry, geo);
+            logDebug(win, `Geometry: ${this} => ${JSON.stringify(geo)}`);
+        });
+        timer.start();
+    }
+
+    toString() {
+        return `Geometry ${JSON.stringify(this.geometry)}`;
+    }
+}
+
 class ActivateAction {
     execute(win) {
         logDebug(win, this);
@@ -174,6 +229,8 @@ function windowAction(action) {
             return new MoveToDesktopAction(value);
         case "maximize":
             return new MaximizeAction(value);
+        case "geometry":
+            return new GeometryAction(value);
         case "activate":
             return new ActivateAction();
         default:
