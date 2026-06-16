@@ -113,7 +113,11 @@ class MoveToDesktopAction {
             win.desktops = [];
             win.onAllDesktops = true;
         } else {
-            win.desktops = [workspace.desktops[this.desktop]];
+            const desktop = this.desktop >= workspace.desktops.length
+                ? workspace.currentDesktop
+                : workspace.desktops[this.desktop];
+
+            win.desktops = [desktop];
         }
     }
 
@@ -182,7 +186,8 @@ class GeometryAction {
                         break;
                 }
             }
-            logDebug(win, `${this} => ${JSON.stringify(geo)} ${this.geometry["v"] ? "V" : ""}${this.geometry["m"] ? "M" : ""}`);
+            const max = this.geometry["m"] ? "M" : this.geometry["v"] ? "V" : "";
+            logDebug(win, `Geometry ${this} => ${JSON.stringify(geo)} ${max}`);
             win.frameGeometry = Object.assign({}, win.frameGeometry, geo);
         });
         win.setMaximize(!!this.geometry["m"] || !!this.geometry["v"], !!this.geometry["m"]);
@@ -190,7 +195,7 @@ class GeometryAction {
     }
 
     toString() {
-        return `Geometry ${JSON.stringify(this.geometry)}`;
+        return JSON.stringify(this.geometry);
     }
 }
 
