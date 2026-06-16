@@ -76,6 +76,9 @@ impl Config {
         if let Some(class) = &self.class {
             search.push(Search::Class(Pattern::new(class)));
         }
+        if let Some(name) = &self.name {
+            search.push(Search::Name(Pattern::new(name)));
+        }
         search.into_iter()
     }
 
@@ -83,6 +86,9 @@ impl Config {
     /// unless `--id` was given, in which case the caller only wants the id.
     pub fn actions(&self) -> Result<Vec<Action>, Error> {
         let mut actions = Vec::new();
+        if let Some(to_desktop) = self.to_desktop {
+            actions.push(Action::ToDesktop(to_desktop));
+        }
         if !self.id {
             actions.push(Action::Activate);
         }
@@ -142,6 +148,44 @@ mod test {
         assert_eq!(
             config(&["--class", "!fleet"]).command().unwrap(),
             "class!=fleet&&activate",
+        );
+    }
+
+    #[test]
+    fn name_criterion_is_serialised() {
+        assert_eq!(
+            config(&["--name", "jetbrains"])
+                .command()
+                .unwrap(),
+            "name=jetbrains&&activate",
+        );
+    }
+
+    #[test]
+    fn class_and_name_combine_with_negation() {
+        assert_eq!(
+            config(&["--class", "!fleet", "--name", "jetbrains"])
+                .command()
+                .unwrap(),
+            "class!=fleet&&name=jetbrains&&activate",
+        );
+    }
+
+    #[test]
+    fn to_desktop_action_precedes_activate() {
+        assert_eq!(
+            config(&["-D", "1", "dolphin"]).command().unwrap(),
+            "class=^dolphin$&&desktop=1;activate",
+        );
+    }
+
+    #[test]
+    fn to_desktop_all_uses_negative_index() {
+        assert_eq!(
+            config(&["-D", "-1", "dolphin"])
+                .command()
+                .unwrap(),
+            "class=^dolphin$&&desktop=-1;activate",
         );
     }
 
