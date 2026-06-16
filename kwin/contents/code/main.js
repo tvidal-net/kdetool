@@ -11,7 +11,7 @@ const SEP_ACTION = ";";
 const SEP_VALUE = "=";
 
 const RE_NAME = /^[a-z]+/i;
-const RE_GEO = /([xywh])([0-9%]+)/gi
+const RE_GEO = /([xywhvm])([0-9%]+)?/gi
 
 const DELAY_MS = 50;
 
@@ -144,9 +144,9 @@ class MoveToScreenAction {
     }
 }
 
-function computeGeometry(area, value) {
+function computeGeometry(min, max, value) {
     const n = parseFloat(value);
-    return /%/.test(value) ? n * area / 100.0 : n;
+    return min + (/%/.test(value) ? n * max / 100.0 : n);
 }
 
 class GeometryAction {
@@ -155,47 +155,37 @@ class GeometryAction {
         this.geometry = {};
         let match = [];
         while (match = RE_GEO.exec(geometry)) {
-            this.geometry[match[1].toUpperCase()] = match[2];
+            this.geometry[match[1].toLowerCase()] = match[2] ?? true;
         }
     }
 
     execute(win) {
-        const target = this.geometry;
         const timer = new QTimer();
         timer.singleShot = true;
         timer.interval = DELAY_MS;
         timer.timeout.connect(() => {
             const a = workspace.clientArea(KWin.MaximizeArea, win);
-            let maxH = false, maxV = false;
             let geo = {};
-            for (let ch in target) {
-                const value = target[ch];
+            for (let ch in this.geometry) {
+                const value = this.geometry[ch];
                 switch (ch) {
-                    case "V":
-                        maxV = true;
-                        break;
-
-                    case "M":
-                        maxV = maxH = true;
-                        break
-
-                    case "W":
+                    case "w":
                         ch = "width";
-                    case "X":
-                        geo[ch] = computeGeometry(a.width, value);
+                    case "x":
+                        geo[ch] = computeGeometry(a.left, a.width, value);
                         break;
 
-                    case "H":
+                    case "h":
                         ch = "height";
-                    case "Y":
-                        geo[ch] = computeGeometry(a.height, value);
+                    case "y":
+                        geo[ch] = computeGeometry(a.top, a.height, value);
                         break;
                 }
             }
+            logDebug(win, `${this} => ${JSON.stringify(geo)} ${this.geometry["v"] ? "V" : ""}${this.geometry["m"] ? "M" : ""}`);
             win.frameGeometry = Object.assign({}, win.frameGeometry, geo);
-            win.setMaximize(maxV, maxH);
-            logDebug(win, `Geometry: ${this} => ${JSON.stringify(geo)}`);
         });
+        win.setMaximize(!!this.geometry["m"] || !!this.geometry["v"], !!this.geometry["m"]);
         timer.start();
     }
 
