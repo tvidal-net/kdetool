@@ -1,4 +1,4 @@
-use crate::{Action, Pattern, Search};
+use crate::{Action, Geometry, Pattern, Search};
 use clap::Parser;
 use regex::{Error, Regex};
 
@@ -82,6 +82,9 @@ impl Config {
         if let Some(title) = &self.title {
             search.push(Search::Title(Pattern::new(title)));
         }
+        if let Some(desktop) = self.desktop {
+            search.push(Search::Desktop(desktop));
+        }
         search.into_iter()
     }
 
@@ -95,6 +98,9 @@ impl Config {
         if let Some(to_screen) = &self.to_screen {
             actions.push(Action::ToScreen(to_screen.as_str().to_string()));
         }
+        if let Some(geometry) = &self.geometry {
+            actions.push(Action::Geometry(Geometry::parse(geometry)?));
+        }
         if !self.id {
             actions.push(Action::Activate);
         }
@@ -102,16 +108,20 @@ impl Config {
     }
 
     /// Serialises the request into the wire format consumed by the KWin script:
-    /// `search && search && action;action`. When no explicit search criteria are
+    /// `search && search && action;action`. When no class/name/title pattern is
     /// given the executable name is matched against the resource class, as
-    /// documented (e.g. `dolphin` becomes `^dolphin$`).
+    /// documented (e.g. `dolphin` becomes `^dolphin$`); a bare `--desktop` filter
+    /// does not displace this default.
     pub fn command(&self) -> Result<String, Error> {
-        let mut parts: Vec<String> = self.search().map(|s| s.to_string()).collect();
-        if parts.is_empty() {
+        let mut parts = Vec::new();
+        let has_pattern = self.class.is_some() || self.name.is_some() || self.title.is_some();
+        if !has_pattern {
             if let Some(program) = &self.program {
                 parts.push(format!("class=^{}$", regex::escape(program)));
             }
         }
+        parts.extend(self.search().map(|s| s.to_string()));
+
         let actions: Vec<String> = self
             .actions()?
             .iter()
@@ -220,6 +230,49 @@ mod test {
                 .command()
                 .unwrap(),
             "class=^dolphin$&&desktop=2;screen=edp;activate",
+        );
+    }
+
+    #[test]
+    fn desktop_criterion_is_serialised() {
+        assert_eq!(
+            config(&["--desktop", "2"]).command().unwrap(),
+            "desktop=2&&activate",
+        );
+    }
+
+    #[test]
+    fn desktop_filter_keeps_the_program_class_default() {
+        assert_eq!(
+            config(&["-d", "3", "dolphin"]).command().unwrap(),
+            "class=^dolphin$&&desktop=3&&activate",
+        );
+    }
+
+    #[test]
+    fn explicit_pattern_suppresses_the_program_class_default() {
+        assert_eq!(
+            config(&["-t", "Vim", "vim"]).command().unwrap(),
+            "title=Vim&&activate",
+        );
+    }
+
+    #[test]
+    fn geometry_action_is_serialised() {
+        assert_eq!(
+            config(&["-g", "w60%x20%m", "dolphin"])
+                .command()
+                .unwrap(),
+            "class=^dolphin$&&geometry=w60%x20%m;activate",
+        );
+    }
+
+    #[test]
+    fn invalid_geometry_is_rejected() {
+        assert!(
+            config(&["-g", "a3", "dolphin"])
+                .command()
+                .is_err()
         );
     }
 
