@@ -143,22 +143,6 @@ class MoveToScreenAction {
     }
 }
 
-class MaximizeAction {
-    constructor(type) {
-        this.vertical = /v/i.test(type);
-        this.horizontal = /h/i.test(type);
-    }
-
-    execute(win) {
-        logDebug(win, this);
-        win.setMaximize(this.vertical, this.horizontal);
-    }
-
-    toString() {
-        return `Maximize ${this.vertical ? "V" : ""}${this.horizontal ? "H" : ""}`;
-    }
-}
-
 function computeGeometry(area, value) {
     const n = parseFloat(value);
     return /%/.test(value) ? n * area / 100.0 : n;
@@ -170,7 +154,7 @@ class GeometryAction {
         this.geometry = {};
         let match = [];
         while (match = RE_GEO.exec(geometry)) {
-            this.geometry[match[1]] = match[2];
+            this.geometry[match[1].toLowerCase()] = match[2];
         }
     }
 
@@ -181,10 +165,19 @@ class GeometryAction {
         timer.interval = DELAY_MS;
         timer.timeout.connect(() => {
             const a = workspace.clientArea(KWin.MaximizeArea, win);
+            let maxH = false, maxV = false;
             let geo = {};
             for (let ch in target) {
                 const value = target[ch];
                 switch (ch) {
+                    case "v":
+                        maxV = true;
+                        break;
+
+                    case "m":
+                        maxV = maxH = true;
+                        break
+
                     case "w":
                         ch = "width";
                     case "x":
@@ -199,6 +192,7 @@ class GeometryAction {
                 }
             }
             win.frameGeometry = Object.assign({}, win.frameGeometry, geo);
+            win.setMaximize(maxV, maxH);
             logDebug(win, `Geometry: ${this} => ${JSON.stringify(geo)}`);
         });
         timer.start();
@@ -227,8 +221,6 @@ function windowAction(action) {
             return new MoveToScreenAction(value);
         case "desktop":
             return new MoveToDesktopAction(value);
-        case "maximize":
-            return new MaximizeAction(value);
         case "geometry":
             return new GeometryAction(value);
         case "activate":
@@ -263,9 +255,9 @@ class WindowAction {
         if (win) {
             logDebug(win, `Matches ${this}`);
             this.actions.forEach(a => a.execute(win));
-            return true;
+            return win.internalId;
         }
-        return false;
+        return null;
     }
 
     toString() {
@@ -289,7 +281,8 @@ const sendReply = (reply) => dbus(
 
 const processAction = (str) => {
     const action = new WindowAction(str);
-    sendReply(action.run() ? "OK" : "NotFound");
+    const id = action.run();
+    sendReply(id ? `OK ${id}` : "NotFound");
 };
 
 const fetchNextAction = () => dbus(

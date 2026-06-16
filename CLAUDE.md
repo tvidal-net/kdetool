@@ -5,7 +5,7 @@ This project is aimed at allowing the user to manipulate aspects of KDE through 
 The main motivation behind this project is to implement a "focus or execute feature" that became really hard to implement with KDE 6 and
 Wayland.
 
-I am also inspired by kdotool, I used it for a long time, but eventually the approach of creating an ad-hoc script, registering, executing,
+It is also inspired by kdotool, I used it for a long time, but eventually the approach of creating an ad-hoc script, registering, executing,
 unregistering and cleaning up became too cumbersome and often left hanging files behind.
 
 This implementation will add a single, long-lived KWin script that will be installed, registered and started on service execution only after
@@ -31,68 +31,6 @@ crates available for each specific task we need.
   |  |- metadata.json       - kwin script metadata
 ```
 
-Here are a few examples of dbus interfaces this program will need to use:
-
-```
-$ busctl --user --verbose introspect org.kde.KWin /KWin
-NAME                                TYPE      SIGNATURE RESULT/VALUE FLAGS
-org.freedesktop.DBus.Introspectable interface -         -            -
-.Introspect                         method    -         s            -
-org.freedesktop.DBus.Peer           interface -         -            -
-.GetMachineId                       method    -         s            -
-.Ping                               method    -         -            -
-org.freedesktop.DBus.Properties     interface -         -            -
-.Get                                method    ss        v            -
-.GetAll                             method    s         a{sv}        -
-.Set                                method    ssv       -            -
-.PropertiesChanged                  signal    sa{sv}as  -            -
-org.kde.KWin                        interface -         -            -
-.activeOutputName                   method    -         s            -
-.currentDesktop                     method    -         i            -
-.getWindowInfo                      method    s         a{sv}        -
-.killWindow                         method    -         -            no-reply
-.nextDesktop                        method    -         -            -
-.previousDesktop                    method    -         -            -
-.queryWindowInfo                    method    -         a{sv}        -
-.reconfigure                        method    -         -            no-reply
-.replace                            method    -         -            -
-.setCurrentDesktop                  method    i         b            -
-.showDebugConsole                   method    -         -            -
-.showDesktop                        method    b         -            no-reply
-.supportInformation                 method    -         s            -
-.showingDesktop                     property  b         false        emits-change
-.reloadConfig                       signal    -         -            -
-.showingDesktopChanged              signal    b         -            -
-
-$ busctl --user --verbose introspect org.kde.KWin /component/kwin
-NAME                                TYPE      SIGNATURE RESULT/VALUE  FLAGS
-org.freedesktop.DBus.Introspectable interface -         -             -
-.Introspect                         method    -         s             -
-org.freedesktop.DBus.Peer           interface -         -             -
-.GetMachineId                       method    -         s             -
-.Ping                               method    -         -             -
-org.freedesktop.DBus.Properties     interface -         -             -
-.Get                                method    ss        v             -
-.GetAll                             method    s         a{sv}         -
-.Set                                method    ssv       -             -
-.PropertiesChanged                  signal    sa{sv}as  -             -
-org.kde.kglobalaccel.Component      interface -         -             -
-.allShortcutInfos                   method    -         a(ssssssaiai) -
-.allShortcutInfos                   method    s         a(ssssssaiai) -
-.cleanUp                            method    -         b             -
-.getShortcutContexts                method    -         as            -
-.invokeShortcut                     method    s         -             -
-.invokeShortcut                     method    ss        -             -
-.isActive                           method    -         b             -
-.shortcutNames                      method    -         as            -
-.shortcutNames                      method    s         as            -
-.friendlyName                       property  s         "KWin"        emits-change
-.uniqueName                         property  s         "kwin"        emits-change
-.globalShortcutPressed              signal    ssx       -             -
-.globalShortcutReleased             signal    ssx       -             -
-.globalShortcutRepeated             signal    ssx       -             -
-```
-
 The KWin Scripting API Reference can be found at:
 
 - https://develop.kde.org/docs/plasma/kwin/api/
@@ -101,7 +39,6 @@ The KWin Scripting API Reference can be found at:
 
 - Parse command line arguments
 - Send and Receive DBus messages
-- Write to the system journal
 - Search for executable files in the path
 - Search through the list of currently running processes
 
@@ -146,19 +83,19 @@ Arguments:
 
 Options:
     -c, --class <regex>             Regular expression to be matched against the resource class
-                                    of the program main window
-    -t, --title <regex>             Regular expression to be matched against the window title
+                                    of the target window
+    -n, --name <regex>              Regular expression to be matched against the resource name
+                                    of the target window
+    -t, --title <regex>             Regular expression to be matched against the caption
     -d, --desktop <index>           Index of the desktop where the window will be searched
-    -s, --screen <regex>            Search windows within the screens matching the regular expression
 
     -D, --to-desktop <index>        Moves the window to the specified desktop
     -S, --to-screen <regex>         Moves the matched window to the first screen whose name
                                     matches the provided regular expression
     -g, --geometry <geometry>       Sets the window position, size and maximize state
                                     according to the <geometry> argument
+    -i, --id                        Prints the window id instead of activating the window
 
-    --list-desktops                 Prints information about all available desktops
-    --list-screens                  Prints information about all available screens
     -v, --verbose                   Enable verbose output
     -V, --version                   Print version information
     -h, --help                      Print help information
@@ -174,14 +111,15 @@ Geometry:
     hNNN    height
     xNNN    horizontal start position
     yNNN    vertical position
-    m<V/H>  Maximized (Vertical with MV, Horizontal with MH or both with MVH or MHV)
+    v       vertical maximized
+    m       maximized
 
         Any number can be terminated with a percent sign, indicating that number is proportional
-    to the aria available.
+        to the aria available.
 
         A combination of values is permitted, for example:
-        w60%x20%mV    Width 60%, Left = 20%, Vertically Maximized
-        mVH           Maximized
+        w60%x20%m     Width 60%, Left = 20%, Vertically Maximized
+        m             Maximized
         w1280h720x0y0 A 1280x720 pixels window on the top left corner
 
     The order of geometry parameters is irrelevant and the same parameter is defined twice,
