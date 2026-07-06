@@ -250,9 +250,19 @@ fn run(config: &Config) -> Result<ExitCode, Box<dyn std::error::Error>> {
             }
             Ok(ExitCode::SUCCESS)
         }
-        // "NotFound": the window was not found and no process produced one.
+        // "NotFound": no open window matched. When a program was provided this
+        // is the "or start it" half of focus-or-start, so launch it detached.
+        // This is the common case for browser PWAs: the browser process is
+        // already running (so the earlier is_running check passes) but the app
+        // window itself is not open, and only launching it will bring it up.
         Some("NotFound") => {
-            Ok(ExitCode::FAILURE)
+            if let Some(program) = config.program() {
+                config.vprintln(format!("no window matched, starting {program}"));
+                proc::launch(program, config.args())?;
+                Ok(ExitCode::SUCCESS)
+            } else {
+                Ok(ExitCode::FAILURE)
+            }
         }
         // "ERROR <message>": the script itself failed; relay the message.
         Some(reply) if reply.starts_with("ERROR") => {
