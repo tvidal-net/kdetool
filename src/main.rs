@@ -207,16 +207,6 @@ fn main() -> ExitCode {
 fn run(config: &Config) -> Result<ExitCode, Box<dyn std::error::Error>> {
     let kwin = KWinClient::new()?;
 
-    // When a target program is given but is not running yet, launch it
-    // detached and stop here: there is no existing window to focus.
-    if let Some(program) = config.program()
-        && !proc::is_running(program)
-    {
-        config.vprintln(format!("starting {program}"));
-        proc::launch(program, config.args())?;
-        return Ok(ExitCode::SUCCESS);
-    }
-
     // With neither a program nor any search criteria there is nothing to focus,
     // so the round-trip would be a no-op: stop before bothering the script.
     if config.program().is_none() && config.search().next().is_none() {
@@ -252,9 +242,9 @@ fn run(config: &Config) -> Result<ExitCode, Box<dyn std::error::Error>> {
         }
         // "NotFound": no open window matched. When a program was provided this
         // is the "or start it" half of focus-or-start, so launch it detached.
-        // This is the common case for browser PWAs: the browser process is
-        // already running (so the earlier is_running check passes) but the app
-        // window itself is not open, and only launching it will bring it up.
+        // The script is the sole authority on whether a window exists, so we
+        // never guess from the process list: browser PWAs share one long-lived
+        // process whose presence says nothing about whether the app is open.
         Some("NotFound") => {
             if let Some(program) = config.program() {
                 config.vprintln(format!("no window matched, starting {program}"));
