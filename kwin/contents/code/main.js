@@ -240,20 +240,27 @@ class WindowAction {
 
     matches(win) {
         return win.windowType === WIN_NORMAL
-            && workspace.activeWindow !== win
             && this.search.every(s => s.matches(win));
     }
 
     run() {
-        const win = workspace.stackingOrder
-            .find(w => this.matches(w));
+        const windows = workspace.stackingOrder
+            .filter(w => this.matches(w));
 
-        if (win) {
-            logDebug(win, `Matches ${this}`);
-            this.actions.forEach(a => a.execute(win));
-            return win.internalId;
+        // No window matches the search at all: report NotFound so the tool can
+        // start the program. A match that merely happens to be the active
+        // window must NOT reach here, or focus-or-start would spawn a duplicate.
+        if (windows.length === 0) {
+            return null;
         }
-        return null;
+
+        // Prefer a match other than the active window so repeated invocations
+        // cycle through the matches; if the active window is the only match,
+        // act on it (activating it is a no-op but still confirms it exists).
+        const win = windows.find(w => w !== workspace.activeWindow) ?? windows[0];
+        logDebug(win, `Matches ${this}`);
+        this.actions.forEach(a => a.execute(win));
+        return win.internalId;
     }
 
     toString() {
