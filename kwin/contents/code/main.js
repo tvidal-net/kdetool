@@ -89,7 +89,13 @@ function searchMatch(search) {
         case "pid":
             return new SimpleMatch(search, w => w.pid);
         case "desktop":
-            return new SimpleMatch(search, w => w.desktops ? w.desktop[0].x11DesktopNumber : -1);
+            // Match the same 0-based index into workspace.desktops that
+            // MoveToDesktopAction uses, so `-d N` and `-D N` mean the same
+            // desktop. A window on all desktops (empty list) matches none.
+            return new SimpleMatch(search, w =>
+                w.desktops && w.desktops.length
+                    ? workspace.desktops.indexOf(w.desktops[0])
+                    : -1);
         case "name":
             return new RegExpMatch(search, w => w.resourceName);
         case "class":

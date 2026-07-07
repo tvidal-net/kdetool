@@ -219,17 +219,27 @@ test("applies a proportional geometry to the matched window", () => {
     assert.equal(lastReply, "OK {x}");
 });
 
-// --- Known issue -------------------------------------------------------------
+test("searching by desktop index selects the window on that desktop", () => {
+    // `-d N` matches the 0-based index into workspace.desktops, the same
+    // numbering MoveToDesktopAction uses for `-D N`.
+    const d0 = { id: "d0" };
+    const d1 = { id: "d1" };
+    const d2 = { id: "d2" };
+    const onD0 = makeWindow({ resourceName: "x", internalId: "{d0}", desktops: [d0] });
+    const onD2 = makeWindow({ resourceName: "x", internalId: "{d2}", desktops: [d2] });
+    scenario({ windows: [onD0, onD2], desktops: [d0, d1, d2] });
 
-test(
-    "searching by desktop index selects the right window",
-    { todo: "SimpleMatch reads w.desktop[0] (typo for w.desktops[0]) and throws" },
-    () => {
-        const win = makeWindow({ resourceName: "x", desktops: [{ x11DesktopNumber: 2 }] });
-        scenario({ windows: [win] });
+    processAction("desktop=2&&activate"); // cmd.rs: `-d 2`
 
-        processAction("desktop=2&&activate"); // cmd.rs: `-d 2`
+    assert.equal(lastReply, "OK {d2}"); // the window on desktop index 2
+});
 
-        assert.equal(lastReply, "OK {fake-id}");
-    },
-);
+test("a window on all desktops does not match a specific desktop index", () => {
+    const d0 = { id: "d0" };
+    const allDesktops = makeWindow({ resourceName: "x", desktops: [] });
+    scenario({ windows: [allDesktops], desktops: [d0] });
+
+    processAction("desktop=0&&activate"); // cmd.rs: `-d 0`
+
+    assert.equal(lastReply, "NotFound");
+});
