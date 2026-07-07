@@ -204,6 +204,26 @@ kwintool --class '^konsole$' --to-screen 'DP-' --geometry 'w50%x0v' --id
 kwintool --id dolphin
 ```
 
+## Development
+
+The two halves of `kwintool` agree only through the wire string the CLI builds,
+so both sides are tested:
+
+```shell
+make test           # runs both suites (or run them individually below)
+
+cargo test                        # Rust unit tests (geometry, wire format)
+node --test kwin/test/*.test.mjs  # KWin script contract tests (needs Node)
+```
+
+The KWin harness stubs the compositor's `workspace`/`callDBus` globals, loads
+`kwin/contents/code/main.js`, and drives it with the exact command strings the
+CLI emits — so a change to either side that breaks their contract fails a test.
+
+Other helpers: `make lint` (clippy + `cargo fmt --check`), `make install`
+(install the CLI and KWin script, then reload it), and `make reload` (reload the
+resident script after editing `main.js`). See the [Makefile](Makefile).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
