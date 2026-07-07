@@ -303,3 +303,11 @@ registerShortcut("KWinToolDebugToggle", "Toggles DebugEnabled", null,
 
 registerShortcut("KWinToolAction", "Triggers a KWinTool action", null, fetchNextAction);
 console.log("KWinTool: KWin Script Loaded");
+
+// Test-only hook: `module` is undefined inside the KWin (QJSEngine) runtime, so
+// this block is skipped there and has no effect on the loaded script. Under
+// Node it exposes the parser/matcher to the test harness, which drives the same
+// wire protocol the Rust side emits. See kwin/test/main.test.mjs.
+if (typeof module !== "undefined" && module.exports) {
+    module.exports = { WindowAction, processAction, searchMatch, windowAction, parse };
+}
