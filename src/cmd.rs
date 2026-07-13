@@ -9,6 +9,12 @@ pub struct Config {
     program: Option<String>,
 
     /// command line arguments
+    ///
+    /// Option parsing stops at the program name: every token after it is
+    /// forwarded to the program verbatim, even if it looks like an option
+    /// (e.g. `brave --profile-directory=Default`). A literal `--` may be used
+    /// to force the boundary explicitly.
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
     args: Vec<String>,
 
     /// match the window resource class name
@@ -278,6 +284,34 @@ mod test {
                 .command()
                 .is_err()
         );
+    }
+
+    #[test]
+    fn program_args_after_the_program_are_passed_through_verbatim() {
+        // Regression: option-looking tokens after the program name must be
+        // forwarded to it, not parsed as kwintool's own options.
+        let cfg = config(&[
+            "--class",
+            "fmpnliohjhemenmnlpbfagaolkdacoja",
+            "brave",
+            "--profile-directory=Default",
+            "--app-id=fmpnliohjhemenmnlpbfagaolkdacoja",
+        ]);
+        assert_eq!(cfg.program(), Some("brave"));
+        assert_eq!(
+            cfg.args(),
+            &[
+                "--profile-directory=Default",
+                "--app-id=fmpnliohjhemenmnlpbfagaolkdacoja",
+            ],
+        );
+    }
+
+    #[test]
+    fn double_dash_forces_the_program_boundary() {
+        let cfg = config(&["--", "brave", "--app-id=x"]);
+        assert_eq!(cfg.program(), Some("brave"));
+        assert_eq!(cfg.args(), &["--app-id=x"]);
     }
 
     #[test]
