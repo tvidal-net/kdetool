@@ -79,3 +79,16 @@ pub fn run(config: &Config) -> Result<ExitCode, Box<dyn std::error::Error>> {
         Some(other) => Err(other.into()),
     }
 }
+
+/// Handles `--update-config`: asks the KWin script to re-fetch its target list
+/// from the background service by triggering the reconfigure shortcut. The list
+/// itself is served (fresh) by the activated service's `GetTargets`, so there is
+/// nothing to write here yet.
+pub fn update_config() -> Result<ExitCode, Box<dyn std::error::Error>> {
+    let kwin = KWinClient::new()?;
+    if !kwin.is_script_loaded()? {
+        return Err("The KWinTool KWin script is not loaded".into());
+    }
+    kwin.invoke_reconfigure()?;
+    Ok(ExitCode::SUCCESS)
+}

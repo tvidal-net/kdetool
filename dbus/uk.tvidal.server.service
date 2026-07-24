@@ -1,0 +1,9 @@
+[D-BUS Service]
+# D-Bus activation stub: when the KWin script addresses this well-known name and
+# no one owns it yet, dbus-daemon asks systemd to start the unit below instead
+# of running Exec. The activated process handles the call and then exits again.
+Name=uk.tvidal.server
+Exec=/bin/false
+SystemdService=kwintool.service
+
+# Install to: ~/.local/share/dbus-1/services/uk.tvidal.server.service

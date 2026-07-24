@@ -61,6 +61,14 @@ pub struct Config {
     /// print diagnostic messages to standard error
     #[arg(short, long)]
     verbose: bool,
+
+    /// run as the D-Bus activated background service (started by systemd)
+    #[arg(long, conflicts_with = "update_config")]
+    service: bool,
+
+    /// reload the window rules, making the KWin script re-fetch its target list
+    #[arg(long)]
+    update_config: bool,
 }
 
 impl Config {
@@ -77,6 +85,16 @@ impl Config {
     /// Whether diagnostic messages should be printed to standard error.
     pub fn verbose(&self) -> bool {
         self.verbose
+    }
+
+    /// Whether to run as the D-Bus activated background service.
+    pub fn service(&self) -> bool {
+        self.service
+    }
+
+    /// Whether to trigger a window-rules reload instead of a focus-or-start.
+    pub fn update_config(&self) -> bool {
+        self.update_config
     }
 
     /// Whether the matched window id should be printed instead of activating it.

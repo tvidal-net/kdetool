@@ -1,0 +1,30 @@
+[Unit]
+Description=KWinTool KWin automation daemon
+Documentation=https://develop.kde.org/docs/plasma/kwin/api/
+# We drive interfaces exposed by KWin on the session bus, so we belong to the
+# graphical session and want KWin up first. Both the Wayland and X11 KWin units
+# are listed; only one is ever present, After= simply ignores the missing one.
+PartOf=graphical-session.target
+After=plasma-kwin_wayland.service plasma-kwin_x11.service
+# This unit is D-Bus activated and short-lived: it starts on demand, handles the
+# call and exits, so the usual crash-loop start-limit would fight normal
+# operation. Restart=on-failure below still recovers a genuine crash, but the
+# start rate is intentionally left unbounded (dbus only re-activates on the next
+# incoming call, which is naturally self-limiting).
+StartLimitIntervalSec=0
+
+[Service]
+Type=dbus
+BusName=uk.tvidal.server
+# Adjust the path to wherever `cargo install --path .` (or your packaging)
+# places the binary; %h expands to the user's home directory.
+ExecStart=%h/.cargo/bin/kwintool --service
+# No Restart=: these activations are ad-hoc and short-lived. If one fails we want
+# the error to surface loudly in the journal for investigation rather than being
+# masked by an automatic retry; the next D-Bus call re-activates the unit anyway.
+Restart=no
+
+[Install]
+# The unit is D-Bus activated, so an explicit enable is optional; keep this so
+# `systemctl --user enable kwintool.service` can pin it to the session start.
+WantedBy=graphical-session.target
