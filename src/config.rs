@@ -268,6 +268,29 @@ mod test {
     }
 
     #[test]
+    fn bundled_example_config_parses_and_translates() {
+        let config = Config::from_str(include_str!("../examples/kwintool.cfg"))
+            .expect("example config parses");
+
+        let targets = config.targets().unwrap();
+        assert!(targets.contains("class=google-chrome|brave-browser|firefox"));
+        assert!(targets.contains("class=mpv&&title=ipcam1"));
+
+        // Browsers get the centred band.
+        assert_eq!(
+            config.action_for("anything:firefox").unwrap(),
+            "geometry=x17%w67%v",
+        );
+        // A camera window is positioned and also caught by the catch-all mpv
+        // rule (sent to DP, all desktops) — the cumulative behaviour of the
+        // original, reproduced by merging matching rules in file order.
+        assert_eq!(
+            config.action_for("ipcam1:mpv").unwrap(),
+            "geometry=x640y352;desktop=-1;screen=DP",
+        );
+    }
+
+    #[test]
     fn default_candidates_are_ordered_config_home_then_home() {
         use std::path::{Path, PathBuf};
         let candidates = super::candidates(Path::new("/home/u/.config"), Path::new("/home/u"));
