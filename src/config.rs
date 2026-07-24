@@ -2,7 +2,7 @@ use std::env;
 use std::error::Error;
 use std::fs;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use regex::Regex;
 use serde::Deserialize;
@@ -45,27 +45,52 @@ pub struct Config {
     rules: Vec<Rule>,
 }
 
-/// Location of the config file: `$XDG_CONFIG_HOME/kwintool/config.conf`, falling
-/// back to `~/.config/kwintool/config.conf`.
-fn config_path() -> PathBuf {
-    let base = env::var_os("XDG_CONFIG_HOME")
-        .filter(|value| !value.is_empty())
-        .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(env::var_os("HOME").unwrap_or_default()).join(".config"));
-    base.join("kwintool").join("config.conf")
+fn home_dir() -> PathBuf {
+    PathBuf::from(env::var_os("HOME").unwrap_or_default())
 }
 
-/// Reads and parses the config file. A missing file is not an error — it yields
-/// an empty rule set — but a present, malformed file is, so the failure surfaces
-/// (verbosely, per the service's no-restart policy) instead of being swallowed.
-pub fn load() -> Result<Config, Box<dyn Error>> {
-    let path = config_path();
-    let text = match fs::read_to_string(&path) {
-        Ok(text) => text,
-        Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(Config { rules: Vec::new() }),
-        Err(err) => return Err(format!("{}: {err}", path.display()).into()),
-    };
-    Config::from_str(&text).map_err(|err| format!("{}: {err}", path.display()).into())
+fn config_home() -> PathBuf {
+    env::var_os("XDG_CONFIG_HOME")
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home_dir().join(".config"))
+}
+
+/// The ordered default config candidates, most preferred first:
+/// `$XDG_CONFIG_HOME/kwintool.cfg` (i.e. `~/.config/kwintool.cfg`) then
+/// `~/.kwintool.cfg`. Split out so the ordering is unit-testable.
+fn candidates(config_home: &Path, home: &Path) -> Vec<PathBuf> {
+    vec![config_home.join("kwintool.cfg"), home.join(".kwintool.cfg")]
+}
+
+fn default_candidates() -> Vec<PathBuf> {
+    candidates(&config_home(), &home_dir())
+}
+
+/// Reads and parses the window-rules config.
+///
+/// With an explicit `--config` path the file must exist (a typo should not be
+/// silently ignored). With the default search path the first existing candidate
+/// wins; if none exist the result is an empty rule set. Either way a present but
+/// malformed file is a loud error, per the service's no-restart policy.
+pub fn load(explicit: Option<&Path>) -> Result<Config, Box<dyn Error>> {
+    if let Some(path) = explicit {
+        let text =
+            fs::read_to_string(path).map_err(|err| format!("{}: {err}", path.display()))?;
+        return Config::from_str(&text).map_err(|err| format!("{}: {err}", path.display()).into());
+    }
+
+    for path in default_candidates() {
+        match fs::read_to_string(&path) {
+            Ok(text) => {
+                return Config::from_str(&text)
+                    .map_err(|err| format!("{}: {err}", path.display()).into());
+            }
+            Err(err) if err.kind() == io::ErrorKind::NotFound => continue,
+            Err(err) => return Err(format!("{}: {err}", path.display()).into()),
+        }
+    }
+    Ok(Config { rules: Vec::new() })
 }
 
 /// Compiles a matcher, honouring a leading `!` as negation (mirroring the CLI
@@ -240,5 +265,18 @@ mod test {
         let config = config("rules = []");
         assert_eq!(config.targets().unwrap(), "");
         assert_eq!(config.action_for("x:y").unwrap(), "");
+    }
+
+    #[test]
+    fn default_candidates_are_ordered_config_home_then_home() {
+        use std::path::{Path, PathBuf};
+        let candidates = super::candidates(Path::new("/home/u/.config"), Path::new("/home/u"));
+        assert_eq!(
+            candidates,
+            vec![
+                PathBuf::from("/home/u/.config/kwintool.cfg"),
+                PathBuf::from("/home/u/.kwintool.cfg"),
+            ],
+        );
     }
 }

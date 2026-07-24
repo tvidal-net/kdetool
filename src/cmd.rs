@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use crate::model::wire_desktop;
 use crate::{Action, Geometry, Pattern, Search};
 use clap::Parser;
@@ -61,6 +63,10 @@ pub struct Config {
     /// reload the window rules, making the KWin script re-fetch its target list
     #[arg(long)]
     update_config: bool,
+
+    /// window-rules config file, overriding the default search path
+    #[arg(long, value_name = "PATH")]
+    config: Option<PathBuf>,
 }
 
 impl Config {
@@ -87,6 +93,12 @@ impl Config {
     /// Whether to trigger a window-rules reload instead of a focus-or-start.
     pub fn update_config(&self) -> bool {
         self.update_config
+    }
+
+    /// Explicit config file path from `--config`, if given; `None` selects the
+    /// default search path.
+    pub fn config_path(&self) -> Option<&Path> {
+        self.config.as_deref()
     }
 
     /// Whether the matched window id should be printed instead of activating it.

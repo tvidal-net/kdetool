@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -29,9 +30,10 @@ const IDLE_TIMEOUT: Duration = Duration::from_secs(10);
 /// Runs the D-Bus-activated background service. Owns `uk.tvidal.server`, answers
 /// the KWin script's `GetTargets`/`WindowAction` queries, and exits cleanly once
 /// it has been idle for [`IDLE_TIMEOUT`]. Each query is answered from a fresh
-/// read of the configuration, so the service holds no state between activations
-/// and a `--update-config` needs nothing invalidated here.
-pub fn serve() -> Result<ExitCode, Box<dyn std::error::Error>> {
+/// read of the configuration at `config_path` (or the default search path when
+/// `None`), so the service holds no state between activations and a
+/// `--update-config` needs nothing invalidated here.
+pub fn serve(config_path: Option<PathBuf>) -> Result<ExitCode, Box<dyn std::error::Error>> {
     let connection = Connection::new_session()?;
     match connection.request_name(BUS_NAME, false, false, true)? {
         RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner => {}
@@ -45,7 +47,7 @@ pub fn serve() -> Result<ExitCode, Box<dyn std::error::Error>> {
 
     let mut crossroads = Crossroads::new();
     let interface = crossroads.register(INTERFACE, |builder| {
-        register_methods(builder, &last_activity);
+        register_methods(builder, &last_activity, &config_path);
     });
     crossroads.insert(OBJECT_PATH, &[interface], ());
 
@@ -69,6 +71,7 @@ pub fn serve() -> Result<ExitCode, Box<dyn std::error::Error>> {
 fn register_methods(
     builder: &mut dbus_crossroads::IfaceBuilder<()>,
     last_activity: &Arc<Mutex<Instant>>,
+    config_path: &Option<PathBuf>,
 ) {
     let touch = |slot: &Arc<Mutex<Instant>>| {
         *slot.lock().expect("activity mutex poisoned") = Instant::now();
@@ -78,13 +81,14 @@ fn register_methods(
     // script watches `windowAdded` against, one per configured rule, in the wire
     // format the script already parses (e.g. "class=alacritty").
     let get_targets_activity = Arc::clone(last_activity);
+    let get_targets_config = config_path.clone();
     builder.method(
         "GetTargets",
         (),
         ("targets",),
         move |_, _, _: ()| -> Result<(String,), MethodErr> {
             touch(&get_targets_activity);
-            match config::load().and_then(|config| config.targets()) {
+            match config::load(get_targets_config.as_deref()).and_then(|config| config.targets()) {
                 Ok(targets) => Ok((targets,)),
                 Err(err) => {
                     eprintln!("KWinTool: GetTargets failed: {err}");
@@ -98,13 +102,16 @@ fn register_methods(
     // script has matched, return the merged action list (no search filter) that
     // the script applies to that window, or an empty string when nothing matches.
     let window_action_activity = Arc::clone(last_activity);
+    let window_action_config = config_path.clone();
     builder.method(
         "WindowAction",
         ("window",),
         ("action",),
         move |_, _, (window,): (String,)| -> Result<(String,), MethodErr> {
             touch(&window_action_activity);
-            match config::load().and_then(|config| config.action_for(&window)) {
+            match config::load(window_action_config.as_deref())
+                .and_then(|config| config.action_for(&window))
+            {
                 Ok(action) => Ok((action,)),
                 Err(err) => {
                     eprintln!("KWinTool: WindowAction({window:?}) failed: {err}");
