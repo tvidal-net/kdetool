@@ -2,6 +2,15 @@ use crate::{Action, Geometry, Pattern, Search};
 use clap::Parser;
 use regex::{Error, Regex};
 
+/// Translates a user-facing, 1-based desktop number into the 0-based index the
+/// KWin script uses to address the `workspace.desktops` array. This keeps the
+/// CLI aligned with the numbering KDE shows the user while the wire protocol
+/// consumed by the script stays 0-based. Non-positive values are sentinels
+/// (negative means "all desktops"), so they pass through unchanged.
+fn wire_desktop(desktop: i8) -> i8 {
+    if desktop > 0 { desktop - 1 } else { desktop }
+}
+
 #[derive(Parser, Debug)]
 #[command(version, about, allow_negative_numbers = true)]
 pub struct Config {
@@ -89,7 +98,7 @@ impl Config {
             search.push(Search::Title(Pattern::new(title)));
         }
         if let Some(desktop) = self.desktop {
-            search.push(Search::Desktop(desktop));
+            search.push(Search::Desktop(wire_desktop(desktop)));
         }
         search.into_iter()
     }
@@ -99,7 +108,7 @@ impl Config {
     pub fn actions(&self) -> Result<Vec<Action>, Error> {
         let mut actions = Vec::new();
         if let Some(to_desktop) = self.to_desktop {
-            actions.push(Action::ToDesktop(to_desktop));
+            actions.push(Action::ToDesktop(wire_desktop(to_desktop)));
         }
         if let Some(to_screen) = &self.to_screen {
             actions.push(Action::ToScreen(to_screen.as_str().to_string()));
@@ -199,9 +208,10 @@ mod test {
 
     #[test]
     fn to_desktop_action_precedes_activate() {
+        // The CLI is 1-based; desktop 1 becomes the 0-based wire index 0.
         assert_eq!(
             config(&["-D", "1", "dolphin"]).command().unwrap(),
-            "name=^dolphin$&&desktop=1;activate",
+            "name=^dolphin$&&desktop=0;activate",
         );
     }
 
@@ -212,6 +222,14 @@ mod test {
                 .command()
                 .unwrap(),
             "name=^dolphin$&&desktop=-1;activate",
+        );
+    }
+
+    #[test]
+    fn to_desktop_converts_one_based_cli_to_zero_based_wire() {
+        assert_eq!(
+            config(&["-D", "3", "dolphin"]).command().unwrap(),
+            "name=^dolphin$&&desktop=2;activate",
         );
     }
 
@@ -239,7 +257,7 @@ mod test {
             config(&["-D", "2", "-S", "edp", "dolphin"])
                 .command()
                 .unwrap(),
-            "name=^dolphin$&&desktop=2;screen=edp;activate",
+            "name=^dolphin$&&desktop=1;screen=edp;activate",
         );
     }
 
@@ -247,7 +265,7 @@ mod test {
     fn desktop_criterion_is_serialised() {
         assert_eq!(
             config(&["--desktop", "2"]).command().unwrap(),
-            "desktop=2&&activate",
+            "desktop=1&&activate",
         );
     }
 
@@ -255,7 +273,7 @@ mod test {
     fn desktop_filter_keeps_the_program_name_default() {
         assert_eq!(
             config(&["-d", "3", "dolphin"]).command().unwrap(),
-            "name=^dolphin$&&desktop=3&&activate",
+            "name=^dolphin$&&desktop=2&&activate",
         );
     }
 

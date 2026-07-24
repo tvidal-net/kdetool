@@ -188,7 +188,7 @@ test("moves the matched window to a virtual desktop, then activates it", () => {
     const win = makeWindow({ resourceName: "x", internalId: "{x}" });
     const ws = scenario({ windows: [win], desktops: [d0, d1] });
 
-    processAction("name=^x$&&desktop=1;activate"); // cmd.rs: `-D 1`
+    processAction("name=^x$&&desktop=1;activate"); // cmd.rs: `-D 2` (1-based)
 
     assert.deepEqual(win.desktops, [d1]);
     assert.equal(ws.activeWindow, win);
@@ -220,8 +220,9 @@ test("applies a proportional geometry to the matched window", () => {
 });
 
 test("searching by desktop index selects the window on that desktop", () => {
-    // `-d N` matches the 0-based index into workspace.desktops, the same
-    // numbering MoveToDesktopAction uses for `-D N`.
+    // On the wire, `desktop=N` is the 0-based index into workspace.desktops,
+    // the same numbering MoveToDesktopAction uses. cmd.rs converts the 1-based
+    // CLI value into this wire index, so `-d 3` sends `desktop=2`.
     const d0 = { id: "d0" };
     const d1 = { id: "d1" };
     const d2 = { id: "d2" };
@@ -229,7 +230,7 @@ test("searching by desktop index selects the window on that desktop", () => {
     const onD2 = makeWindow({ resourceName: "x", internalId: "{d2}", desktops: [d2] });
     scenario({ windows: [onD0, onD2], desktops: [d0, d1, d2] });
 
-    processAction("desktop=2&&activate"); // cmd.rs: `-d 2`
+    processAction("desktop=2&&activate"); // cmd.rs: `-d 3` (1-based)
 
     assert.equal(lastReply, "OK {d2}"); // the window on desktop index 2
 });
@@ -239,7 +240,7 @@ test("a window on all desktops does not match a specific desktop index", () => {
     const allDesktops = makeWindow({ resourceName: "x", desktops: [] });
     scenario({ windows: [allDesktops], desktops: [d0] });
 
-    processAction("desktop=0&&activate"); // cmd.rs: `-d 0`
+    processAction("desktop=0&&activate"); // cmd.rs: `-d 1` (1-based)
 
     assert.equal(lastReply, "NotFound");
 });
