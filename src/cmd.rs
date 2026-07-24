@@ -1,15 +1,7 @@
+use crate::model::wire_desktop;
 use crate::{Action, Geometry, Pattern, Search};
 use clap::Parser;
 use regex::{Error, Regex};
-
-/// Translates a user-facing, 1-based desktop number into the 0-based index the
-/// KWin script uses to address the `workspace.desktops` array. This keeps the
-/// CLI aligned with the numbering KDE shows the user while the wire protocol
-/// consumed by the script stays 0-based. Non-positive values are sentinels
-/// (negative means "all desktops"), so they pass through unchanged.
-fn wire_desktop(desktop: i8) -> i8 {
-    if desktop > 0 { desktop - 1 } else { desktop }
-}
 
 #[derive(Parser, Debug)]
 #[command(version, about, allow_negative_numbers = true)]

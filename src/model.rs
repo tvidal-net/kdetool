@@ -4,6 +4,15 @@ use regex::Regex;
 
 use crate::geometry::Geometry;
 
+/// Translates a user-facing, 1-based desktop number into the 0-based index the
+/// KWin script uses to address the `workspace.desktops` array. This keeps both
+/// the CLI (`-d`/`-D`) and the config-file rules aligned with the numbering KDE
+/// shows the user while the wire protocol stays 0-based. Non-positive values are
+/// sentinels (negative means "all desktops") and pass through unchanged.
+pub fn wire_desktop(desktop: i8) -> i8 {
+    if desktop > 0 { desktop - 1 } else { desktop }
+}
+
 /// A regular-expression criterion that may be negated with a leading `!`,
 /// mirroring the `field!=value` form understood by the KWin script.
 #[derive(Debug)]

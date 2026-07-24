@@ -8,6 +8,8 @@ use dbus::channel::MatchingReceiver;
 use dbus::message::MatchRule;
 use dbus_crossroads::{Crossroads, MethodErr};
 
+use crate::config;
+
 // DBus identity of the systemd/D-Bus-activated background service, kept in sync
 // with the SERVER_* constants at the top of kwin/contents/code/main.js and with
 // the `Name=`/`BusName=` in dbus/ and systemd/. The KWin script owns no name of
@@ -82,8 +84,13 @@ fn register_methods(
         ("targets",),
         move |_, _, _: ()| -> Result<(String,), MethodErr> {
             touch(&get_targets_activity);
-            // TODO(config): return config::targets() once the HOCON module lands.
-            Ok((String::new(),))
+            match config::load().and_then(|config| config.targets()) {
+                Ok(targets) => Ok((targets,)),
+                Err(err) => {
+                    eprintln!("KWinTool: GetTargets failed: {err}");
+                    Err(MethodErr::failed(&format!("GetTargets: {err}")))
+                }
+            }
         },
     );
 
@@ -97,9 +104,13 @@ fn register_methods(
         ("action",),
         move |_, _, (window,): (String,)| -> Result<(String,), MethodErr> {
             touch(&window_action_activity);
-            let _ = window;
-            // TODO(config): return config::action_for(&window) once HOCON lands.
-            Ok((String::new(),))
+            match config::load().and_then(|config| config.action_for(&window)) {
+                Ok(action) => Ok((action,)),
+                Err(err) => {
+                    eprintln!("KWinTool: WindowAction({window:?}) failed: {err}");
+                    Err(MethodErr::failed(&format!("WindowAction: {err}")))
+                }
+            }
         },
     );
 }

@@ -2,6 +2,7 @@ use std::time::Duration;
 
 pub mod app;
 pub mod cmd;
+pub mod config;
 pub mod geometry;
 pub mod hocon;
 pub mod kwin;
