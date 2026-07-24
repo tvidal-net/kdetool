@@ -59,7 +59,7 @@ globalThis.QTimer = class {
 // the banner so it does not pollute the test output.
 const banner = console.log;
 console.log = () => {};
-const { processAction, reconfigure, handleWindow } = require(join(here, "..", "contents", "code", "main.js"));
+const { processAction, reconfigure, handleWindow, applyActions } = require(join(here, "..", "contents", "code", "main.js"));
 console.log = banner;
 
 // --- Fixtures ----------------------------------------------------------------
@@ -74,8 +74,12 @@ function makeWindow(props = {}) {
         internalId: "{fake-id}",
         desktops: [],
         onAllDesktops: false,
+        noBorder: false,
+        keepBelow: false,
         frameGeometry: { x: 0, y: 0, width: 0, height: 0 },
-        setMaximize() {},
+        setMaximize(vertical, horizontal) {
+            this._maximize = { vertical, horizontal };
+        },
         ...props,
     };
 }
@@ -256,6 +260,45 @@ test("a window on all desktops does not match a specific desktop index", () => {
     processAction("desktop=0&&activate"); // cmd.rs: `-d 1` (1-based)
 
     assert.equal(lastReply, "NotFound");
+});
+
+// --- Title composite matching & the new toggle actions -----------------------
+
+test("title matches against the caption:class composite", () => {
+    // Empty-caption JetBrains window: the composite is ":jetbrains-fleet".
+    const jb = makeWindow({ caption: "", resourceClass: "jetbrains-fleet", internalId: "{j}" });
+    scenario({ windows: [jb] });
+
+    processAction("title=^:jetbrains-&&activate"); // anchors on the class suffix
+
+    assert.equal(lastReply, "OK {j}");
+});
+
+test("noborder action toggles the window frame", () => {
+    const win = makeWindow({ resourceClass: "x" });
+    scenario({ windows: [win] });
+
+    applyActions(win, "noborder=true");
+
+    assert.equal(win.noBorder, true);
+});
+
+test("maximize=false un-maximizes the window", () => {
+    const win = makeWindow({ resourceClass: "org-diylc-DIYLC" });
+    scenario({ windows: [win] });
+
+    applyActions(win, "maximize=false");
+
+    assert.deepEqual(win._maximize, { vertical: false, horizontal: false });
+});
+
+test("keepbelow action lowers the window in the stack", () => {
+    const win = makeWindow({ resourceClass: "mpv" });
+    scenario({ windows: [win] });
+
+    applyActions(win, "keepbelow=true");
+
+    assert.equal(win.keepBelow, true);
 });
 
 // --- Background service (windowAdded) integration ----------------------------

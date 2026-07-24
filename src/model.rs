@@ -65,6 +65,9 @@ impl fmt::Display for Search {
 pub enum Action {
     ToDesktop(i8),
     ToScreen(String),
+    NoBorder(bool),
+    Maximize(bool),
+    KeepBelow(bool),
     Geometry(Vec<Geometry>),
     Activate,
 }
@@ -74,6 +77,9 @@ impl fmt::Display for Action {
         match self {
             Action::ToDesktop(desktop) => write!(f, "desktop={desktop}"),
             Action::ToScreen(screen) => write!(f, "screen={screen}"),
+            Action::NoBorder(on) => write!(f, "noborder={on}"),
+            Action::Maximize(on) => write!(f, "maximize={on}"),
+            Action::KeepBelow(on) => write!(f, "keepbelow={on}"),
             Action::Geometry(parts) => {
                 write!(f, "geometry=")?;
                 for part in parts {

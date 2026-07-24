@@ -29,6 +29,13 @@ struct Rule {
     to_desktop: Option<i8>,
     #[serde(default, rename = "to-screen")]
     to_screen: Option<String>,
+    #[serde(default, rename = "no-border")]
+    no_border: Option<bool>,
+    /// `false` un-maximizes a window that opens maximized; `true` maximizes it.
+    #[serde(default)]
+    maximize: Option<bool>,
+    #[serde(default, rename = "keep-below")]
+    keep_below: Option<bool>,
     #[serde(default)]
     geometry: Option<String>,
 }
@@ -120,8 +127,10 @@ impl Rule {
         Ok(search)
     }
 
-    /// The rule's actions, in the same order the CLI emits them (minus the
-    /// trailing `activate`, since the service places an already-open window).
+    /// The rule's actions. Geometry is emitted last (it defers to a timer on the
+    /// script side); the toggles and maximize apply synchronously before it. The
+    /// trailing `activate` is omitted, since the service places an already-open
+    /// window rather than focusing it.
     fn actions(&self) -> Result<Vec<Action>, Box<dyn Error>> {
         let mut actions = Vec::new();
         if let Some(desktop) = self.to_desktop {
@@ -130,15 +139,26 @@ impl Rule {
         if let Some(screen) = &self.to_screen {
             actions.push(Action::ToScreen(screen.clone()));
         }
+        if let Some(no_border) = self.no_border {
+            actions.push(Action::NoBorder(no_border));
+        }
+        if let Some(maximize) = self.maximize {
+            actions.push(Action::Maximize(maximize));
+        }
+        if let Some(keep_below) = self.keep_below {
+            actions.push(Action::KeepBelow(keep_below));
+        }
         if let Some(geometry) = &self.geometry {
             actions.push(Action::Geometry(Geometry::parse(geometry)?));
         }
         Ok(actions)
     }
 
-    /// Whether this rule applies to a window with the given caption and class.
-    /// A rule with no criteria never matches (it produces no target either).
-    fn matches_window(&self, caption: &str, class: &str) -> Result<bool, regex::Error> {
+    /// Whether this rule applies to a window. `class` matches the resource class;
+    /// `title` matches the full `caption:class` composite (so patterns can anchor
+    /// on the class, matching the KWin script and CLI). A rule with no criteria
+    /// never matches (it produces no target either).
+    fn matches_window(&self, window: &str, class: &str) -> Result<bool, regex::Error> {
         if !self.has_criteria() {
             return Ok(false);
         }
@@ -148,7 +168,7 @@ impl Rule {
             }
         }
         if let Some(pattern) = &self.title {
-            if !matches(pattern, caption)? {
+            if !matches(pattern, window)? {
                 return Ok(false);
             }
         }
@@ -185,13 +205,13 @@ impl Config {
     /// matches. The class is the segment after the last `:` (a resource class
     /// never contains one; a caption might).
     pub fn action_for(&self, window: &str) -> Result<String, Box<dyn Error>> {
-        let (caption, class) = match window.rsplit_once(':') {
-            Some((caption, class)) => (caption, class),
-            None => ("", window),
+        let class = match window.rsplit_once(':') {
+            Some((_, class)) => class,
+            None => window,
         };
         let mut actions = Vec::new();
         for rule in &self.rules {
-            if rule.matches_window(caption, class)? {
+            if rule.matches_window(window, class)? {
                 actions.extend(rule.actions()?.iter().map(Action::to_string));
             }
         }
@@ -248,10 +268,30 @@ mod test {
     }
 
     #[test]
-    fn title_criterion_matches_the_caption_half_only() {
+    fn title_matches_the_caption_class_composite() {
         let config = config(r#"rules = [ { class = mpv, title = ipcam1, to-desktop = 1 } ]"#);
         assert_eq!(config.action_for("ipcam1 stream:mpv").unwrap(), "desktop=0");
         assert_eq!(config.action_for("ipcam2 stream:mpv").unwrap(), "");
+    }
+
+    #[test]
+    fn title_can_anchor_on_the_class_suffix() {
+        // The class is appended after the caption, so `:class$` style patterns
+        // work — the reason the JetBrains rule's original composite matters.
+        let config = config(r#"rules = [ { title = ":mpv$", to-desktop = 1 } ]"#);
+        assert_eq!(config.action_for("ipcam1:mpv").unwrap(), "desktop=0");
+        assert_eq!(config.action_for("ipcam1:code").unwrap(), "");
+    }
+
+    #[test]
+    fn border_maximize_and_keep_below_serialise() {
+        let config = config(
+            r#"rules = [ { class = x, no-border = true, maximize = false, keep-below = true } ]"#,
+        );
+        assert_eq!(
+            config.action_for("cap:x").unwrap(),
+            "noborder=true;maximize=false;keepbelow=true",
+        );
     }
 
     #[test]
@@ -282,11 +322,21 @@ mod test {
             "geometry=x17%w67%v",
         );
         // A camera window is positioned and also caught by the catch-all mpv
-        // rule (sent to DP, all desktops) — the cumulative behaviour of the
+        // rule (DP, all desktops, kept below) — the cumulative behaviour of the
         // original, reproduced by merging matching rules in file order.
         assert_eq!(
             config.action_for("ipcam1:mpv").unwrap(),
-            "geometry=x640y352;desktop=-1;screen=DP",
+            "geometry=x640y352;desktop=-1;screen=DP;keepbelow=true",
+        );
+        // JetBrains/Fleet is borderless; matched via the class suffix.
+        assert_eq!(
+            config.action_for("x - Fleet:jetbrains-fleet").unwrap(),
+            "noborder=true;geometry=x17%w67%v",
+        );
+        // DIYLC opens maximized and gets un-maximized.
+        assert_eq!(
+            config.action_for("DIY Layout Creator:org-diylc-DIYLC").unwrap(),
+            "maximize=false",
         );
     }
 

@@ -104,7 +104,10 @@ function searchMatch(search) {
         case "class":
             return new RegExpMatch(search, w => w.resourceClass);
         case "title":
-            return new RegExpMatch(search, w => w.caption);
+            // Match against "caption:resourceClass" so patterns can anchor on
+            // the class (e.g. `-fleet$` or `^:jetbrains-`), matching how the Rust
+            // config and CLI treat title.
+            return new RegExpMatch(search, w => `${w.caption}:${w.resourceClass}`);
         default:
             throw `invalid search criteria: ${search}`
     }
@@ -154,6 +157,54 @@ class MoveToScreenAction {
 
     toString() {
         return `ToScreen = /${this.screen.source}/${this.screen.flags}`;
+    }
+}
+
+class NoBorderAction {
+
+    constructor(value) {
+        this.noBorder = value === "true";
+    }
+
+    execute(win) {
+        logDebug(win, this);
+        win.noBorder = this.noBorder;
+    }
+
+    toString() {
+        return `NoBorder = ${this.noBorder}`;
+    }
+}
+
+class MaximizeAction {
+
+    constructor(value) {
+        this.maximize = value === "true";
+    }
+
+    execute(win) {
+        logDebug(win, this);
+        win.setMaximize(this.maximize, this.maximize);
+    }
+
+    toString() {
+        return `Maximize = ${this.maximize}`;
+    }
+}
+
+class KeepBelowAction {
+
+    constructor(value) {
+        this.keepBelow = value === "true";
+    }
+
+    execute(win) {
+        logDebug(win, this);
+        win.keepBelow = this.keepBelow;
+    }
+
+    toString() {
+        return `KeepBelow = ${this.keepBelow}`;
     }
 }
 
@@ -226,6 +277,12 @@ function windowAction(action) {
             return new MoveToScreenAction(value);
         case "desktop":
             return new MoveToDesktopAction(value);
+        case "noborder":
+            return new NoBorderAction(value);
+        case "maximize":
+            return new MaximizeAction(value);
+        case "keepbelow":
+            return new KeepBelowAction(value);
         case "geometry":
             return new GeometryAction(value);
         case "activate":
