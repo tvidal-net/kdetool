@@ -236,6 +236,30 @@ test("applies a proportional geometry to the matched window", () => {
     assert.equal(lastReply, "OK {x}");
 });
 
+test("sizes are proportional to the area, not offset by the screen origin", () => {
+    const win = makeWindow({ resourceName: "x", internalId: "{x}" });
+    scenario({ windows: [win] });
+    // A second screen at x=1920: sizes must not pick up that 1920 offset.
+    workspace.clientArea = () => ({ left: 1920, top: 0, width: 1920, height: 1080 });
+
+    processAction("name=^x$&&geometry=x10%w50%;activate");
+
+    assert.equal(win.frameGeometry.x, 1920 + 192); // origin + 10% of width
+    assert.equal(win.frameGeometry.width, 960); // 50% of width, no origin added
+});
+
+test("vertical maximize sets the width and maximizes vertically only", () => {
+    const win = makeWindow({ resourceName: "x", internalId: "{x}" });
+    scenario({ windows: [win] });
+
+    processAction("name=^x$&&geometry=x17%w66%v;activate");
+
+    // The target width is applied (66% of 1920) and the window is maximized
+    // vertically, not horizontally — the ultra-wide regression.
+    assert.equal(Math.round(win.frameGeometry.width), 1267);
+    assert.deepEqual(win._maximize, { vertical: true, horizontal: false });
+});
+
 test("searching by desktop index selects the window on that desktop", () => {
     // On the wire, `desktop=N` is the 0-based index into workspace.desktops,
     // the same numbering MoveToDesktopAction uses. cmd.rs converts the 1-based

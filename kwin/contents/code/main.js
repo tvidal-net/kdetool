@@ -233,24 +233,31 @@ class GeometryAction {
             for (let ch in this.geometry) {
                 const value = this.geometry[ch];
                 switch (ch) {
-                    case "w":
-                        ch = "width";
+                    // Positions are offset by the area origin (so a screen at
+                    // left/top > 0 places correctly); sizes are proportional to
+                    // the area only — offsetting them by the origin makes a
+                    // window on a non-primary screen grow far too wide/tall.
                     case "x":
-                        geo[ch] = computeGeometry(a.left, a.width, value);
+                        geo.x = computeGeometry(a.left, a.width, value);
                         break;
-
-                    case "h":
-                        ch = "height";
                     case "y":
-                        geo[ch] = computeGeometry(a.top, a.height, value);
+                        geo.y = computeGeometry(a.top, a.height, value);
+                        break;
+                    case "w":
+                        geo.width = computeGeometry(0, a.width, value);
+                        break;
+                    case "h":
+                        geo.height = computeGeometry(0, a.height, value);
                         break;
                 }
             }
-            const max = this.geometry["m"] ? "M" : this.geometry["v"] ? "V" : "";
-            logDebug(win, `Geometry ${this} => ${JSON.stringify(geo)} ${max}`);
             win.frameGeometry = Object.assign({}, win.frameGeometry, geo);
+            // Maximize LAST, once the target size is in place: vertical/both
+            // maximize then stretches from the size we just set. Doing it before
+            // the resize leaves the window stuck at its old (wide) width.
+            win.setMaximize(!!this.geometry["m"] || !!this.geometry["v"], !!this.geometry["m"]);
+            logDebug(win, `Geometry ${this} => ${JSON.stringify(geo)}`);
         });
-        win.setMaximize(!!this.geometry["m"] || !!this.geometry["v"], !!this.geometry["m"]);
         timer.start();
     }
 
