@@ -25,12 +25,23 @@ const here = dirname(fileURLToPath(import.meta.url));
 // --- KWin runtime stubs, installed before the script is loaded ---------------
 
 let lastReply;
+// Canned replies for the background-service methods (method -> reply string) and
+// a log of the calls the script made, so tests can drive GetTargets/WindowAction.
+let dbusResponses = {};
+let dbusCalls = [];
 
 globalThis.registerShortcut = () => {};
 globalThis.callDBus = (_bus, _path, _iface, method, ...args) => {
-    // The script replies to the tool via callDBus(..., "sendReply", <text>).
+    // The script replies to the one-shot client via callDBus(..., "sendReply", …).
     if (method === "sendReply") {
         lastReply = args[0];
+        return;
+    }
+    // Other calls (GetTargets/WindowAction) may pass a trailing reply callback.
+    const callback = typeof args[args.length - 1] === "function" ? args.pop() : null;
+    dbusCalls.push({ method, args });
+    if (callback && Object.prototype.hasOwnProperty.call(dbusResponses, method)) {
+        callback(dbusResponses[method]);
     }
 };
 globalThis.KWin = { MaximizeArea: 0 };
@@ -48,7 +59,7 @@ globalThis.QTimer = class {
 // the banner so it does not pollute the test output.
 const banner = console.log;
 console.log = () => {};
-const { processAction } = require(join(here, "..", "contents", "code", "main.js"));
+const { processAction, reconfigure, handleWindow } = require(join(here, "..", "contents", "code", "main.js"));
 console.log = banner;
 
 // --- Fixtures ----------------------------------------------------------------
@@ -72,6 +83,8 @@ function makeWindow(props = {}) {
 /** Installs a fresh `workspace` and clears the captured reply. */
 function scenario({ windows = [], active = null, screens = [], desktops = [] } = {}) {
     lastReply = undefined;
+    dbusResponses = {};
+    dbusCalls = [];
     globalThis.workspace = {
         stackingOrder: windows,
         activeWindow: active,
@@ -243,4 +256,48 @@ test("a window on all desktops does not match a specific desktop index", () => {
     processAction("desktop=0&&activate"); // cmd.rs: `-d 1` (1-based)
 
     assert.equal(lastReply, "NotFound");
+});
+
+// --- Background service (windowAdded) integration ----------------------------
+
+test("reconfigure applies the service's action to a matching open window", () => {
+    const term = makeWindow({ resourceClass: "alacritty", caption: "Terminal", internalId: "{a}" });
+    const ws = scenario({ windows: [term], desktops: [{ id: "d0" }, { id: "d1" }, { id: "d2" }] });
+    // config::targets() serves the prefilter; config::action_for() the actions.
+    dbusResponses["GetTargets"] = "class=alacritty";
+    dbusResponses["WindowAction"] = "desktop=2"; // 0-based wire index
+
+    reconfigure();
+
+    // The script asks the service using the "caption:class" composite...
+    const call = dbusCalls.find(c => c.method === "WindowAction");
+    assert.deepEqual(call.args, ["Terminal:alacritty"]);
+    // ...and applies the returned action to that window.
+    assert.deepEqual(term.desktops, [ws.desktops[2]]);
+});
+
+test("a window matching no target is left untouched", () => {
+    const editor = makeWindow({ resourceClass: "code", caption: "main.rs", internalId: "{c}" });
+    scenario({ windows: [editor] });
+    dbusResponses["GetTargets"] = "class=alacritty";
+
+    reconfigure();
+
+    assert.equal(dbusCalls.some((c) => c.method === "WindowAction"), false);
+});
+
+test("windowAdded consults the service only after targets are loaded", () => {
+    const mpv = makeWindow({ resourceClass: "mpv", caption: "ipcam1", internalId: "{m}" });
+    scenario({ windows: [], desktops: [{ id: "d0" }] });
+    dbusResponses["GetTargets"] = "class=mpv&&title=ipcam1";
+    dbusResponses["WindowAction"] = "geometry=x0y0";
+
+    // Before reconfigure there are no targets, so a new window is ignored.
+    handleWindow(mpv);
+    assert.equal(dbusCalls.some((c) => c.method === "WindowAction"), false);
+
+    // After loading targets, the same window is acted on.
+    reconfigure();
+    handleWindow(mpv);
+    assert.equal(dbusCalls.some((c) => c.method === "WindowAction"), true);
 });

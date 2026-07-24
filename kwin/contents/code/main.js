@@ -306,11 +306,100 @@ const fetchNextAction = () => dbus(
     processAction
 );
 
+// --- Background service (uk.tvidal.server) integration -----------------------
+// The systemd/D-Bus-activated service tells us which windows to watch
+// (GetTargets) and what to do with each match (WindowAction). We pull the target
+// list on load and whenever KWinToolReconfigure fires, match it against
+// windowAdded locally, then ask the service for the actions to apply so the Rust
+// side stays the single source of truth for the rules.
+
+const SERVER_BUS = "uk.tvidal.server";
+const SERVER_PATH = "/KWinTool";
+const SERVER_INTERFACE = "uk.tvidal.server";
+const SEP_TARGET = "\n";
+
+const serverDbus = (methodName, ...args) => callDBus(
+    SERVER_BUS,
+    SERVER_PATH,
+    SERVER_INTERFACE,
+    methodName,
+    ...args
+);
+
+// A search-only matcher for one target line, e.g. "class=mpv&&title=ipcam1".
+class Target {
+    constructor(str) {
+        this.search = str.split(SEP_SEARCH)
+            .filter(s => !!s)
+            .map(searchMatch);
+    }
+
+    matches(win) {
+        return win.windowType === WIN_NORMAL
+            && this.search.length > 0
+            && this.search.every(s => s.matches(win));
+    }
+}
+
+let targets = [];
+
+function applyActions(win, actions) {
+    actions.split(SEP_ACTION)
+        .filter(a => !!a)
+        .map(windowAction)
+        .forEach(a => a.execute(win));
+}
+
+// Called for every window: if it matches a configured target, ask the service
+// what to do with it (passing "caption:class") and apply the reply.
+function handleWindow(win) {
+    try {
+        if (!targets.some(t => t.matches(win))) {
+            return;
+        }
+        const window = `${win.caption}:${win.resourceClass}`;
+        serverDbus("WindowAction", window, (actions) => {
+            if (actions) {
+                logDebug(win, `WindowAction(${window}) => ${actions}`);
+                applyActions(win, actions);
+            }
+        });
+    } catch (err) {
+        logError(err);
+    }
+}
+
+// Re-fetch the target list from the service and re-apply to open windows.
+function reconfigure() {
+    serverDbus("GetTargets", (reply) => {
+        try {
+            targets = (reply || "").split(SEP_TARGET)
+                .filter(s => !!s)
+                .map(s => new Target(s));
+            if (debugEnabled) {
+                console.log(`KWinTool: ${targets.length} target(s) loaded`);
+            }
+            workspace.stackingOrder.forEach(handleWindow);
+        } catch (err) {
+            logError(err);
+        }
+    });
+}
+
 registerShortcut("KWinToolDebugToggle", "Toggles DebugEnabled", null,
     () => console.log(`KWinTool: debugEnabled = ${debugEnabled = !debugEnabled}`)
 );
 
 registerShortcut("KWinToolAction", "Triggers a KWinTool action", null, fetchNextAction);
+registerShortcut("KWinToolReconfigure", "Reload KWinTool window rules", null, reconfigure);
+
+// `workspace` is a KWin runtime global; it is absent under the Node test harness
+// (which drives the exported functions directly), so guard the live wiring.
+if (typeof workspace !== "undefined") {
+    workspace.windowAdded.connect(handleWindow);
+    reconfigure();
+}
+
 console.log("KWinTool: KWin Script Loaded");
 
 // Test-only hook: `module` is undefined inside the KWin (QJSEngine) runtime, so
@@ -318,5 +407,8 @@ console.log("KWinTool: KWin Script Loaded");
 // Node it exposes the parser/matcher to the test harness, which drives the same
 // wire protocol the Rust side emits. See kwin/test/main.test.mjs.
 if (typeof module !== "undefined" && module.exports) {
-    module.exports = { WindowAction, processAction, searchMatch, windowAction, parse };
+    module.exports = {
+        WindowAction, processAction, searchMatch, windowAction, parse,
+        Target, applyActions, handleWindow, reconfigure,
+    };
 }
