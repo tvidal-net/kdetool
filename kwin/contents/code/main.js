@@ -1,6 +1,9 @@
-const BUS_NAME = "uk.tvidal";
+// One-shot client: the transient `kwintool <app>` process that drives a
+// focus-or-start round-trip (fetchNextAction/sendReply). Kept in sync with the
+// constants in src/service.rs.
+const BUS_NAME = "uk.tvidal.client";
 const OBJECT_PATH = "/KWinTool";
-const INTERFACE = "uk.tvidal.KWinTool";
+const INTERFACE = "uk.tvidal.client";
 
 const WIN_NORMAL = 0;
 const REGEX_FLAGS = "i";

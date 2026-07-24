@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use std::thread::sleep;
 use std::time::{Duration, Instant};
 
 use crate::TIMEOUT;
@@ -11,13 +12,45 @@ use dbus::channel::MatchingReceiver;
 use dbus::message::MatchRule;
 use dbus_crossroads::{Crossroads, MethodErr};
 
-// DBus identity of the tool, kept in sync with the constants at the top of
-// kwin/contents/code/main.js.
-const BUS_NAME: &str = "uk.tvidal";
+// DBus identity of the one-shot client, kept in sync with the CLIENT_* constants
+// at the top of kwin/contents/code/main.js. The transient `kwintool <app>`
+// process owns this name only while it drives a focus-or-start round-trip; the
+// systemd-activated background service owns a separate name (see server.rs).
+const BUS_NAME: &str = "uk.tvidal.client";
 const OBJECT_PATH: &str = "/KWinTool";
-const INTERFACE: &str = "uk.tvidal.KWinTool";
+const INTERFACE: &str = "uk.tvidal.client";
 
 const POLL_INTERVAL: Duration = Duration::from_millis(500);
+
+// Two concurrent `kwintool <app>` invocations contend for the single client
+// name. Rather than replacing (and interrupting) an in-flight round-trip, a
+// second invocation waits for the first to finish, retrying for up to 10s.
+const NAME_RETRY_INTERVAL: Duration = Duration::from_secs(1);
+const NAME_RETRY_ATTEMPTS: u32 = 10;
+
+// Requests the well-known client name, waiting out any other client that
+// currently owns it. `do_not_queue` makes a taken name report immediately so we
+// control the retry cadence ourselves instead of blocking in the daemon queue.
+fn acquire_name(connection: &Connection) -> Result<(), Error> {
+    for attempt in 1..=NAME_RETRY_ATTEMPTS {
+        match connection.request_name(BUS_NAME, false, false, true)? {
+            RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner => return Ok(()),
+            reply if attempt < NAME_RETRY_ATTEMPTS => {
+                let _ = reply;
+                sleep(NAME_RETRY_INTERVAL);
+            }
+            reply => {
+                return Err(Error::new_custom(
+                    "uk.tvidal.client.NameNotAcquired",
+                    &format!(
+                        "could not acquire {BUS_NAME} after {NAME_RETRY_ATTEMPTS} attempts: {reply:?}"
+                    ),
+                ));
+            }
+        }
+    }
+    unreachable!("loop returns on the final attempt")
+}
 
 pub struct Service {
     connection: Connection,
@@ -34,15 +67,7 @@ impl Service {
     /// the connection until the serve loop processes them.
     pub fn register(action: String) -> Result<Self, Error> {
         let connection = Connection::new_session()?;
-        match connection.request_name(BUS_NAME, false, true, false)? {
-            RequestNameReply::PrimaryOwner | RequestNameReply::AlreadyOwner => {}
-            reply => {
-                return Err(Error::new_custom(
-                    "uk.tvidal.KWinTool.NameNotAcquired",
-                    &format!("could not acquire {BUS_NAME}: {reply:?}"),
-                ));
-            }
-        }
+        acquire_name(&connection)?;
 
         let stop = Arc::new(AtomicBool::new(false));
         let reply = Arc::new(Mutex::new(None));
