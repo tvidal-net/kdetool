@@ -25,7 +25,10 @@ SCRIPTING  := gdbus call --session --dest org.kde.KWin --object-path /Scripting 
 .PHONY: build test test-rust test-kwin lint fmt install install-service reload uninstall clean
 
 build:
-	cargo build --release
+	cargo build --verbose --profile release
+
+strip: build
+	strip --verbose --strip-all target/release/kwintool
 
 test: test-rust test-kwin
 
@@ -43,7 +46,7 @@ fmt:
 	cargo fmt
 
 # Install the CLI to ~/.cargo/bin and (re)install the bundled KWin script.
-install: build install-service
+install: build strip install-service
 	cargo install --path . --force
 	@if kpackagetool6 --type KWin/Script --list 2>/dev/null | grep -qx $(SCRIPT_ID); then \
 		kpackagetool6 --type KWin/Script --upgrade $(KWIN_PKG); \
