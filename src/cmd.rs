@@ -146,9 +146,10 @@ impl Config {
 
     /// Serialises the request into the wire format consumed by the KWin script:
     /// `search && search && action;action`. When no class/name/title pattern is
-    /// given the executable name is matched against the resource class, as
-    /// documented (e.g. `dolphin` becomes `^dolphin$`); a bare `--desktop` filter
-    /// does not displace this default.
+    /// given the executable name is matched against the resource name — the same
+    /// field as `--name` — (e.g. `dolphin` becomes `name=^dolphin$`), since a
+    /// program's resource name usually equals its executable; a bare `--desktop`
+    /// filter does not displace this default.
     pub fn command(&self) -> Result<String, Error> {
         let mut parts = Vec::new();
         let has_pattern = self.class.is_some() || self.name.is_some() || self.title.is_some();

@@ -101,7 +101,7 @@ Options:
     -h, --help                      Print help information
 
     When no search criteria is provided the executable name will be used to search the window
-resource class name.
+resource name (i.e. the same field as --name).
 
     If the current active window matches the search criteria, the next window (if it exists),
  matching the search criteria will be focused instead.

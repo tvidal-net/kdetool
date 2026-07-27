@@ -84,7 +84,7 @@ kwintool [OPTIONS] [PROGRAM] [ARGS...]
 
 | Argument     | Description                                                                 |
 |--------------|-----------------------------------------------------------------------------|
-| `PROGRAM`    | Executable to focus or launch. When no `--class`/`--name`/`--title` pattern is given, its name is matched against the window resource class (e.g. `dolphin` → `^dolphin$`). |
+| `PROGRAM`    | Executable to focus or launch. When no `--class`/`--name`/`--title` pattern is given, its name is matched against the window resource name (e.g. `dolphin` → `^dolphin$`). |
 | `ARGS...`    | Arguments forwarded to `PROGRAM` when it has to be launched.                 |
 
 ### Search criteria
