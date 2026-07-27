@@ -145,8 +145,10 @@ class MoveToScreenAction {
     }
 
     execute(win) {
+        // Match the connector name (e.g. "DP-2", "HDMI-A-1"), not the EDID model
+        // string: `-S DP` means the DisplayPort output, which lives in `name`.
         const screen = workspace.screens
-            .find(s => this.screen.test(s.model));
+            .find(s => this.screen.test(s.name));
 
         if (screen) {
             logDebug(win, `${this} (${screen.manufacturer} ${screen.name} ${screen.model})`);

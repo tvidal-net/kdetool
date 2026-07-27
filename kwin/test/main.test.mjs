@@ -212,14 +212,16 @@ test("moves the matched window to a virtual desktop, then activates it", () => {
     assert.equal(lastReply, "OK {x}");
 });
 
-test("sends the matched window to a screen matched by regex", () => {
-    const hdmi = { model: "HDMI-A-1", name: "HDMI-A-1", manufacturer: "Acme" };
+test("sends the matched window to a screen matched by connector name", () => {
+    // The regex must match the connector `name` (DP-2), not the EDID `model`.
+    const hdmi = { name: "HDMI-A-1", model: "LG TV", manufacturer: "LG" };
+    const dp = { name: "DP-2", model: "LG Monitor", manufacturer: "LG" };
     const win = makeWindow({ resourceName: "x", internalId: "{x}" });
-    const ws = scenario({ windows: [win], screens: [hdmi] });
+    const ws = scenario({ windows: [win], screens: [hdmi, dp] });
 
-    processAction("name=^x$&&screen=HDMI;activate"); // cmd.rs: `-S HDMI`
+    processAction("name=^x$&&screen=DP;activate"); // cmd.rs: `-S DP`
 
-    assert.equal(win._screen, hdmi);
+    assert.equal(win._screen, dp);
     assert.equal(ws.activeWindow, win);
     assert.equal(lastReply, "OK {x}");
 });
